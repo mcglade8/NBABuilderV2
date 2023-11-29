@@ -624,8 +624,8 @@ async function buildLineups(){
                 player[player.Team] = 1;
                 
                 if(!(player.Team in teams)){ 
-                    teams[player.Team] = Math.random();
-                    teams[player.Opponent] = teams[player.Team];
+                    teams[player.Team] = Math.floor(Math.random()*3)-1;
+                    if(teams[player.Team] < 0) teams[player.Opponent] = Math.floor(Math.random()*2); else teams[player.Opponent] = Math.floor(Math.random()*3)-1;
                 }
 
                 player = randomizeProjection(player, teams);
@@ -754,18 +754,17 @@ function shuffle(array) {
 }
 
 function randomizeProjection(p, teams){
-    var teamFlatness = teams[p.Team] > 0.5;
-    var mins = Number(p.Minutes);
-    var proj = Number(p.Projected);
-    var ppm = proj/mins;
-    var minsRand = (Math.random() + Math.random() + Math.random() )* 14/3 - 7;
-    var ppmRand = (Math.random() + Math.random() + Math.random() )* 0.24/3 - 0.12;
-    var minsNew = mins + minsRand;
-    if(teamFlatness && mins > 0) minsNew = (8*minsNew + 80)/9;
-    var ppmNew = ppm + ppmRand;
-    var projNew = minsNew * ppmNew;
-    if(projNew < 0) projNew = 0;
-    p.Projected = projNew.toFixed(1);
+    var teamProjection = p.Projected / p['Pct FPs'];
+    var blowout = teams[p.Team];
+    
+    switch(blowout){
+        case -1: teamProjection = teamProjection * 0.9; break;
+        case 0: teamProjection = teamProjection * 1; break;
+        case 1: teamProjection = teamProjection * 1.1; break;
+    }
+
+    let newPct = p['Pct FPs'] * (1 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.12);
+    p.Projected = (teamProjection * newPct).toFixed(1);
     return p;
 }
 
