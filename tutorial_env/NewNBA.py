@@ -38,6 +38,12 @@ def get_box_scores():
 
     # calculate team fantasy points per game
     t1 = sb.groupby(['TEAM_ABBREVIATION', 'GAME_ID']).sum(numeric_only=True).groupby('TEAM_ABBREVIATION').mean(numeric_only=True).reset_index()
+    
+    # get a unique team id for each team
+    teamandid = sb[['TEAM_ABBREVIATION', 'TEAM_ID']]
+    teamandid = teamandid.drop_duplicates(subset=['TEAM_ABBREVIATION'])
+
+    # get the average fantasy points per game for each team
     t1 = t1[['TEAM_ABBREVIATION', 'FPTS']]
     t1.columns = ['TEAM_ABBREVIATION', 'TEAM_FPTS_AVG']
     
@@ -52,6 +58,9 @@ def get_box_scores():
 
     # get players' averages
     sb = sb.groupby('PLAYER_NAME').mean(numeric_only=True).reset_index()
+
+    # merge with teamandid by team_id
+    sb = pd.merge(sb, teamandid, on='TEAM_ID')
 
     # make the player names the index
     sb = sb.set_index('PLAYER_NAME')
