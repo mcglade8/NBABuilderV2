@@ -160,9 +160,24 @@ $(document).ready(async function(){
     }).then(() => {
         colorRowsBasedOnTeam(document.getElementById('contestDataTable'), 3);
         colorRowsBasedOnTeam(document.getElementById('playerAdjustTable'), 2);
-        return;
+        return applyInjuries();
     });
 });
+
+function applyInjuries(){
+    var table = document.getElementById("playerAdjustTable");
+    var rows = table.rows;
+    var injuries = JSON.parse(localStorage.NBAInjuries);
+    if(injuries == null) return;
+    for(let i = 1; i < rows.length; i++){
+        let row = rows[i];
+        let name = row.cells[0].innerHTML;
+        if(injuries.includes(name)){
+            let btn = row.cells[6].getElementsByTagName("button")[0];
+            toggleInjured(btn);
+        }
+    }
+}
 
 // Get info from JSON file
 function getInfoFromJSON(file){
@@ -967,28 +982,29 @@ function resetPlayerAdjustTable(){
 }
 
 async function toggleInjured(btn){
+    if(localStorage.NBAInjuries){
+        var injuries = JSON.parse(localStorage.NBAInjuries);
+    }else{
+        var injuries = [];
+    }
+    var player = btn.parentNode.parentNode.cells[0].innerHTML;
 
-//    let promise = new Promise((resolve) => {
-    //     resolve([player, team]);
-    // });
-    // promise.then((values) => {
-        // let player = values[0];
-        // let team = values[2];
-        if(btn.innerHTML == "Healthy"){
-            btn.innerHTML = "Injured";
-            btn.className = "injured";
-            btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].setAttribute('savedproj', btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value);
-            btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value = 0;
-          //  applyInjury(player, team);
-        } else{
-            btn.innerHTML = "Healthy";
-            btn.className = "healthy";
-            btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value = btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].getAttribute('savedproj');
-            btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].removeAttribute('savedproj');
-          //  removeInjury(player, team);
-        }
-        updateProj(btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0]);
-    // });
+    if(btn.innerHTML == "Healthy"){
+        btn.innerHTML = "Injured";
+        btn.className = "injured";
+        btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].setAttribute('savedproj', btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value);
+        btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value = 0;
+        if(!injuries.includes(player)) injuries.push(player);
+    } else{
+        btn.innerHTML = "Healthy";
+        btn.className = "healthy";
+        btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].value = btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].getAttribute('savedproj');
+        btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0].removeAttribute('savedproj');
+        var index = injuries.indexOf(player);
+        if(index > -1) injuries.splice(index, 1);
+    }
+    updateProj(btn.parentNode.parentNode.cells[4].getElementsByTagName("input")[0]);
+    localStorage.NBAInjuries = JSON.stringify(injuries);
 }
 
 
