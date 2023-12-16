@@ -44,16 +44,29 @@ async function getContestData(DKSalariesNBA){
     // var contestName = document.getElementById("contestName").value;
     for(let i of DKSalariesNBA){
         if('Game Info' in i) if(i['Game Info'] != undefined) contestData.push(i);
+        if('Game' in i) if(i['Game'] != undefined){
+            contestData.push(i);
+            i['Team'] = fixTeamAbbrev(i['Team']);
+            i['Opponent'] = fixTeamAbbrev(i['Opponent']);
+        }
     }
-
     //addSelectOption(contestName, contestDate);
     addTableRows(contestData);
-    
+}
 
+fixTeamAbbrev = (team) => {
+    switch(team){
+        case "PHO": return "PHX";
+        case "NY": return "NYK";
+        case "NO": return "NOP";
+        case "SA": return "SAS";
+    }
+    return team;
 }
 
 // Populates the table with data from contestData
 function addTableRows(contestData){
+    console.log(contestData);
     var table = document.getElementById("contestDataTable");
     var ids = [];
     var rows = table.rows;
@@ -62,35 +75,91 @@ function addTableRows(contestData){
         if(Number(r.rowIndex)>0) ids.push(r.cells[6].innerHTML.trim());
     }
     for(let p of contestData){
-        let opponent = getOpp(p['Game Info'].split(" ")[0], p['TeamAbbrev']);
-        // If player is already in table, skip it. Otherwise add to playersInList
-        if(!ids.includes(p['ID'])) {
-            ids.push(p['ID'].trim());
-            var row = table.insertRow(-1);
-            var pos = row.insertCell(0);
-            var name = row.insertCell(1);
-            var salary = row.insertCell(2);
-            var team = row.insertCell(3);
-            var opp = row.insertCell(4);
-            var id = row.insertCell(5);
-            var pct = row.insertCell(6);
-            var proj = row.insertCell(7);
-            var value = row.insertCell(8);
-            pos.innerHTML = p['Position'];
-            name.innerHTML = p['Name'];
-            salary.innerHTML = p['Salary'];
-            team.innerHTML = p['TeamAbbrev'];
-            opp.innerHTML = opponent;
-            id.innerHTML = p['ID'];
-            pct.innerHTML =0;
-            proj.innerHTML = 0;
-            value.innerHTML = 0;
+        
+        if('Game Info' in p) {
+            var opponent = getOpp(p['Game Info'].split(" ")[0], p['TeamAbbrev']);
+            // If player is already in table, skip it. Otherwise add to playersInList
+            if(!ids.includes(p['ID'])) {
+                ids.push(p['ID'].trim());
+                var row = table.insertRow(-1);
+                var pos = row.insertCell(0);
+                var name = row.insertCell(1);
+                var salary = row.insertCell(2);
+                var team = row.insertCell(3);
+                var opp = row.insertCell(4);
+                var id = row.insertCell(5);
+                var pct = row.insertCell(6);
+                var proj = row.insertCell(7);
+                var value = row.insertCell(8);
+                pos.innerHTML = p['Position'];
+                name.innerHTML = p['Name'];
+                salary.innerHTML = p['Salary'];
+                team.innerHTML = p['TeamAbbrev'];
+                opp.innerHTML = opponent;
+                id.innerHTML = p['ID'];
+                pct.innerHTML =0;
+                proj.innerHTML = 0;
+                value.innerHTML = 0;
 
+            }
+        }else{
+            // If player is already in table, skip it. Otherwise add to playersInList
+            if(!ids.includes(p['Id'])) {
+                ids.push(p['Id'].trim());
+                var row = table.insertRow(-1);
+                var pos = row.insertCell(0);
+                var name = row.insertCell(1);
+                var salary = row.insertCell(2);
+                var team = row.insertCell(3);
+                var opp = row.insertCell(4);
+                var id = row.insertCell(5);
+                var pct = row.insertCell(6);
+                var proj = row.insertCell(7);
+                var value = row.insertCell(8);
+                pos.innerHTML = p['Position'];
+                name.innerHTML = convertToFDName(p['Nickname']);
+                salary.innerHTML = p['Salary'];
+                team.innerHTML = p['Team'];
+                opp.innerHTML = p['Opponent'];
+                id.innerHTML = p['Id'];
+                pct.innerHTML =0;
+                proj.innerHTML = 0;
+                value.innerHTML = 0;
+
+            }
         }
     }
     savetableDataNBA();
+    
     location.reload();
 }
+
+convertToFDName = (name) => {
+    switch(name){
+        case "Jaren Jackson": return "Jaren Jackson Jr.";
+        case "Wendell Carter": return "Wendell Carter Jr.";
+        case "Tim Hardaway": return "Tim Hardaway Jr.";
+        case "Otto Porter": return "Otto Porter Jr.";
+        case "TJ Warren": return "T.J. Warren";
+        case "PJ Tucker": return "P.J. Tucker";
+        case "Wesley Matthews": return "Wes Matthews";
+        case "TJ McConnell": return "T.J. McConnell";
+        case "Derrick Jones": return "Derrick Jones Jr.";
+        case "Jabari Smith": return "Jabari Smith Jr.";
+        case "Trey Murphy": return "Trey Murphy III";
+        case "Kelly Oubre": return "Kelly Oubre Jr.";
+        case "Marvin Bagley": return "Marvin Bagley III";
+        case "Vince Williams": return "Vince Williams Jr.";
+        case "Marcus Morris": return "Marcus Morris Sr.";
+        case "Gary Trent": return "Gary Trent Jr.";
+        case "Kevin Knox": return "Kevin Knox II";
+        case "KJ Martin": return "Kenyon Martin Jr.";
+        case "Larry Nance": return "Larry Nance Jr.";
+    }
+    return name;
+}
+
+
 
 function getOpp(gameInfo, team){
     var opp = "";
@@ -142,6 +211,9 @@ function openTab(element){
     var tabs = document.getElementsByClassName("content");
     for(let i = 0; i < tabs.length; i++){
         tabs[i].style.display = "none";
+    }
+    if(element == "builder"){
+        if(document.getElementById('contestDataTable').rows[1].cells[5].innerHTML.includes("-")) element = "fdBuilder";
     }
     var tab = document.getElementById(element);
     tab.style.display = "block";
@@ -454,7 +526,11 @@ async function getPlayerInfo(){
         var teamFpts = info[1];
         console.log(data);
         console.log(teamFpts);
-
+        if(localStorage.savedPlayerDataNBA){
+            var savedData = JSON.parse(localStorage.savedPlayerDataNBA);
+        }else{
+            var savedData = {};
+        }
         var teams = [];
         // add this info plus team to playerAdjust table; make FPs/Minute a range between 0 and 2 with step of 0.1; make minutes a range between 0 and 48 with step of 1, make Proj a text that updates to fps/minute * minutes
         var table = document.getElementById("playerAdjustTable");
@@ -473,7 +549,9 @@ async function getPlayerInfo(){
 
             var player = r.cells[1].innerHTML;
             if(player in data){
-                pct.innerHTML = '<input type="range" value="'+(data[player]['FPTS_PCT_OF_TEAM']).toFixed(2)+'" min="0" max="0.3" step="0.01" oninput="updateProj(this)"><text>'+data[player]['FPTS_PCT_OF_TEAM'].toFixed(2)+'</text>';
+                if(player in savedData) pct.innerHTML = '<input type="range" value="'+savedData[player]+'" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>'+savedData[player]+'</text>'; else{
+                    pct.innerHTML = '<input type="range" value="'+(data[player]['FPTS_PCT_OF_TEAM'])+'" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>'+data[player]['FPTS_PCT_OF_TEAM'].toFixed(2)+'</text>';
+                }
             } else{
                 pct.innerHTML = '<input type="range" value="0" min="0" max="0.3" step="0.01" oninput="updateProj(this)"><text>0</text>';
             }
@@ -577,6 +655,20 @@ function updateProj(element){
     text.innerHTML = element.value;
     var proj = element.parentNode.nextElementSibling;
     proj.innerHTML = (Number(row.cells[3].innerHTML) * Number(text.innerHTML)).toFixed(1);
+
+    if(localStorage.savedPlayerDataNBA){
+        var savedData = JSON.parse(localStorage.savedPlayerDataNBA);
+        var name = row.cells[0].innerHTML;
+        var sliderValue = element.value;
+        savedData[name] = sliderValue;
+        localStorage.savedPlayerDataNBA = JSON.stringify(savedData);
+    }else{
+        var savedData = {};
+        var name = row.cells[0].innerHTML;
+        var sliderValue = element.value;
+        savedData[name] = sliderValue;
+        localStorage.savedPlayerDataNBA = JSON.stringify(savedData);
+    }
 
     updateContestDataTable();
     filterByTeam(document.getElementById("teamSelect"), "playerAdjustTable");
@@ -693,6 +785,102 @@ async function buildLineups(){
     }
 }
 
+async function buildLineupsFD(){
+    var lineupsToBuild = document.getElementById("lineupsToBuildFD").value;
+    
+    for(let i = 0; i < lineupsToBuild; i++){
+        
+        let promise = new Promise((resolve) => {
+            var table = document.getElementById("contestDataTable");
+            var rows = table.rows;
+            var teams = [];
+
+            var players = [];
+            // get objects of all players from table and add to players
+            // objects should have name as key and all other row info as values
+            for(let i = 1; i < rows.length; i++){
+                var player = {};
+                for(let j = 0; j < rows[i].cells.length; j++){
+                    let info = rows[0].cells[j].innerHTML;
+                    player[info] = rows[i].cells[j].innerHTML;
+                }
+                if(player['Projected'] < 10) continue;
+                // Add position to player object with value 1
+                if(player.Position.includes("PG")){ 
+                    player['PG'] = 1;
+                    player['UTIL'] = 1;
+                }
+                if(player.Position.includes("SG")){ 
+                    player['SG'] = 1;
+                    player['UTIL'] = 1;
+                }
+                if(player.Position.includes("SF")){ 
+                    player['SF'] = 1;
+                    player['UTIL'] = 1;
+                }
+                if(player.Position.includes("PF")){ 
+                    player['PF'] = 1;
+                    player['UTIL'] = 1;
+                }
+                if(player.Position.includes("C")){ 
+                    player['C'] = 1;
+                    player['UTIL'] = 1;
+                }
+                player[player.Team] = 1;
+                
+                if(!(player.Team in teams)){ 
+                    teams[player.Team] = Math.floor(Math.random()*3)-1;
+                    if(teams[player.Team] < 0) teams[player.Opponent] = Math.floor(Math.random()*2); else teams[player.Opponent] = Math.floor(Math.random()*3)-1;
+                }
+
+                player = randomizeProjection(player, teams);
+                players[player.Name] = player;
+            }
+            resolve(players);
+        });
+
+        promise.then((players) => {
+        // solve for max projection with constraints
+            require(['solver'], function(solver){
+                var teams = [];
+                var opponents = {};
+                for(let p in players){
+                    if(!players[p].Team in teams) {
+                        teams.push(players[p].Team);
+                        opponents[players[p].Team] = players[p].Opponent;
+                    }
+                    players[p][alphabetize(players[p].Team, players[p].Opponent)] = 1;
+                }
+                var model = {
+                    "optimize": "Projected",
+                    "opType": "max",
+                    "constraints": {
+                        "PG": {"min": 2, "max": 4},
+                        "SG": {"min": 2, "max": 4},
+                        "SF": {"min": 2, "max": 4},
+                        "PF": {"min": 2, "max": 4},
+                        "C": {"min": 1, "max": 3},
+                        "UTIL": {"equal": 9},
+                        "Salary": {"max": 60000}
+                    },
+                    "variables": players,
+                    "binaries": players
+                };
+
+                for(let t of teams){
+                    model.constraints[t] = {"max": 4};
+                    let game = alphabetize(t, opponents[t]);
+                    model.constraints[game] = {"max": 7};
+                }
+                
+                var result = solver.Solve(model);
+                console.log(result);
+                addLineupToTableFD(result, players);
+            }); 
+        });
+    }
+}
+
 // Alphabetize two teams into one string
 function alphabetize(team1, team2){
     if(team1 < team2) return team1 + team2;
@@ -741,6 +929,48 @@ function addLineupToTable(result, players){
     document.getElementById('lineupsBuilt').innerHTML = Number(document.getElementById('lineupsBuilt').innerHTML) + 1;
 }
 
+function addLineupToTableFD(result, players){
+    var table = document.getElementById("lineupTableFD");
+    var row = table.insertRow(-1);
+
+    var lineupPlayers = [];
+    for(let p in result){
+        if(players[p] != undefined) lineupPlayers.push(players[p]);
+    }
+    var totalSalary = 0;
+    var totalProj = 0;
+
+    // randomize lineupPlayers order and finalize when order matches PG, SG, SF, PF, C, G, F, UTIL
+    
+    var orderIsCorrect = false;
+    var beginLoop = Date.now();
+    while(!orderIsCorrect){
+        orderIsCorrect = checkOrderFD(lineupPlayers);
+        if(!orderIsCorrect) lineupPlayers = shuffle(lineupPlayers);
+        if(Date.now() - beginLoop > 1000) break;
+    }
+    if(!orderIsCorrect){
+        table.deleteRow(row.rowIndex);
+        console.log("Could not find valid lineup");
+        return;
+    }
+    for(let p of lineupPlayers){
+        let c = row.insertCell(-1)
+        c.innerHTML = p.Name + "<br>" + p.ID + "<br>" + p.Salary + "<br>" + p.Team;
+        c.style.backgroundColor = getTeamColor(p.Team);
+        c.style.color = getTeamSecondaryColor(p.Team);
+        totalSalary += Number(p.Salary);
+        totalProj += Number(p.Projected);
+    }
+    let s = row.insertCell(-1)
+    s.innerHTML = totalSalary;
+    s.backgroundColor = colorByScale(48500, 50000, totalSalary);
+    let p = row.insertCell(-1)
+    p.innerHTML = totalProj.toFixed(1);
+    p.backgroundColor = colorByScale(200, 400, totalProj);
+    document.getElementById('lineupsBuiltFD').innerHTML = Number(document.getElementById('lineupsBuiltFD').innerHTML) + 1;
+}
+
 function checkOrder(lineup){
     var order = ["PG", "SG", "SF", "PF", "C", "G", "F"];
     for(let i = 0; i < order.length; i++){
@@ -749,6 +979,13 @@ function checkOrder(lineup){
     return true;
 }
 
+function checkOrderFD(lineup){
+    var order = ["PG", "PG", "SG", "SG", "SF", "SF", "PF", "PF", "C"];
+    for(let i = 0; i < order.length; i++){
+        if(!lineup[i].Position.includes(order[i])) return false;
+    }
+    return true;
+}
 // Randomize the order of an array
 function shuffle(array) {
     let currentIndex = array.length,  randomIndex;
@@ -784,7 +1021,11 @@ function randomizeProjection(p, teams){
 }
 
 function updateOwnership(){
-    var lineupTable = document.getElementById("lineupTable");
+    if(document.getElementById("contestDataTable").rows[1].cells[5].innerHTML.includes("-")){
+        var lineupTable = document.getElementById("lineupTableFD");
+    }else{
+        var lineupTable = document.getElementById("lineupTable");
+    }
     var ownershipTable = document.getElementById("ownershipTable");
     var poolSize = document.getElementById("poolSize");
 
@@ -792,14 +1033,14 @@ function updateOwnership(){
         ownershipTable.deleteRow(1);
     }
     poolSize.innerHTML = 0;
-
+    var rowLength = lineupTable.rows[0].cells.length;
     var rows = lineupTable.rows;
     var ownership = {};
     for(let i = 1; i < rows.length; i++){
         var row = rows[i];
         var players = row.cells;
         for(let p of players){
-            if(p.cellIndex >= 8) continue;
+            if(p.cellIndex >= rowLength - 2) continue;
             let name = p.innerHTML.split("<br>")[0];
             if(name in ownership) ownership[name] += 1;
             else{ 
@@ -860,6 +1101,28 @@ function downloadLineups(){
     link.click();
 }
 
+function downloadLineupsFD(){
+    var lineups = document.getElementById("lineupTableFD").rows;
+    var csv = "data:text/csv;charset=utf-8,";
+    csv += "PG,PG,SG,SG,SF,SF,PF,PF,C\n";
+    for(let l of lineups){
+        if(l.rowIndex == 0) continue;
+        var row = [];
+        for(let c of l.cells){
+            if(c.cellIndex >= 9) continue;
+            csv += c.innerHTML.split("<br>")[1]
+            if(c.cellIndex < 8) csv += ",";
+        }
+        csv += "\n";    
+    }
+    var encodedUri = encodeURI(csv);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "fdlineups.csv");
+    document.body.appendChild(link);
+    link.click();
+}
+
 function downloadEditedLineups(){
     var lineups = document.getElementById("lineupTable").rows;
     var csv = "data:text/csv;charset=utf-8,";
@@ -893,10 +1156,71 @@ function downloadEditedLineups(){
     link.click();
 }
 
+function downloadEditedLineupsFD(){
+    var lineups = document.getElementById("lineupTableFD").rows;
+    var csv = "data:text/csv;charset=utf-8,";
+    var previousLineups = JSON.parse(DKEntries);
+
+    for(let l of lineups){
+        if(l.rowIndex == 0) continue;
+        var row = [];
+        for(let c of l.cells){
+            if(c.cellIndex >= 8) continue;
+            row.push(c.innerHTML.split("<br>")[1]);
+        }
+
+        var index = l.rowIndex;
+        if(index > previousLineups.length) index = previousLineups.length;
+        for(let i = 0; i < row.length; i++){
+
+            previousLineups[index][i+3] = row[i];
+        }
+    }
+    for(let l of previousLineups){
+        csv += l.join(",") + "\n";
+    }
+    //csv += previousLineups.join("\n");
+    var encodedUri = encodeURI(csv);
+
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "fdlineups.csv");
+    document.body.appendChild(link);
+    link.click();
+}
+
 var DKEntries = "";
 
 function handleLineupscsv(){
     var csv = document.getElementById("editcsv").files[0];
+    var reader = new FileReader();
+    // save csv to storage as JSON
+    reader.onload = function(e){
+        var csv = e.target.result;
+        var lines = csv.split("\n");
+        var result = [];
+        var headers = lines[0].split(",");
+        for(let i = 0; i < lines.length; i++){
+            var obj = [];
+            var currentline = lines[i].split(",");
+            for(let j = 0; j < headers.length; j++){
+                obj[j] = currentline[j];
+            }
+            result.push(obj);
+        }
+        //localStorage.DKEntries = JSON.stringify(result);
+        //return result;
+        //return(JSON.stringify(result));
+        //location.reload();
+        DKEntries = JSON.stringify(result);
+    }
+    reader.readAsText(csv);
+
+}
+
+
+function handleLineupscsvFD(){
+    var csv = document.getElementById("editcsvFD").files[0];
     var reader = new FileReader();
     // save csv to storage as JSON
     reader.onload = function(e){
@@ -1140,6 +1464,15 @@ function clearLineups(){
         table.deleteRow(i);
     }
     document.getElementById('lineupsBuilt').innerHTML = 0;
+}
+
+function clearLineupsFD(){
+    var table = document.getElementById("lineupTableFD");
+    var rows = table.rows;
+    for(let i = rows.length-1; i > 0; i--){
+        table.deleteRow(i);
+    }
+    document.getElementById('lineupsBuiltFD').innerHTML = 0;
 }
 
 function colorByScale(min, max, value){

@@ -120,5 +120,3 @@ get_box_scores()
 #     # print the player stats as .json
 #     player_stats.to_json('player_stats.json', orient='records')
 
-# # get the player stats for the last game each team played prior to today
-# get_player_stats_json()

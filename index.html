@@ -65,8 +65,8 @@
                     <th>Position</th>
                     <th>Team</th>
                     <th>Team FPs</th>
-                    <th>Percent of FPs</th>
-                    <th>Proj</th>
+                    <th style="width:560px">Percent of FPs</th>
+                    <th style="width:140px">Proj</th>
                     <th>Injured</th>
                 </tr>
             </thead>
@@ -99,6 +99,42 @@
                             <th>G</th>
                             <th>F</th>
                             <th>UTIL</th>
+                            <th>Salary</th>
+                            <th>Proj</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="fdBuilder" class="content">
+        <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuildFD" value="20" min="1">
+        <button class="buildLineups classicBuilder" onclick="buildLineupsFD()">Build Lineups</button></div>
+        <div class="csvSection holdTop" style="top:102px">
+            <!--<label style="float:none" for="contestcsv">Import salaries: </label><input type="file" name="contestcsv" id="contestcsv" oninput="handlecsv('contestcsv')">-->
+            <div class="downloadChunk holdTop"  style="top: 102px;"><button onclick="downloadLineupsFD()" class="downloadLineupsButton classicBuilder">Download Lineups for Initial Upload</button></div>
+            <div class="downloadChunk holdTop" style="top: 159px;"><label style="float:none" for="editcsvFD">Lineups for edit: </label><input type="file" name="editcsvFD" id="editcsvFD" oninput="handleLineupscsvFD()">
+            <button onclick="downloadEditedLineupsFD()" class="downloadLineupsButton classicBuilder">Download Edited Lineups</button></div>
+        </div>
+        <div id="FDClassic" class="builderSection fdClassicBuilder">
+            <div>
+                <div class="downloadChunk holdTop"  style="top: 216px;">Lineups built: <text id="lineupsBuiltFD">0</text><button onclick="clearLineupsFD()">Clear</button></div>
+                
+                <table id="lineupTableFD">
+                    <thead>
+                        <tr class="holdTop"  style="top: 273px;">
+                            <th>PG</th>
+                            <th>PG</th>
+                            <th>SG</th>
+                            <th>SG</th>
+                            <th>SF</th>
+                            <th>SF</th>
+                            <th>PF</th>
+                            <th>PF</th>
+                            <th>C</th>
                             <th>Salary</th>
                             <th>Proj</th>
                         </tr>

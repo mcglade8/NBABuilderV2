@@ -113,3 +113,7 @@ input[type="range"]{
     border-right: 1px solid #000;
 
 }
+#teamSummary th{
+    text-align:center;
+    width: 33%;
+}
