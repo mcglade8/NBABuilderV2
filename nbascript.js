@@ -60,6 +60,7 @@ fixTeamAbbrev = (team) => {
         case "NY": return "NYK";
         case "NO": return "NOP";
         case "SA": return "SAS";
+        case "GS": return "GSW";
     }
     return team;
 }
@@ -155,10 +156,11 @@ convertToFDName = (name) => {
         case "Kevin Knox": return "Kevin Knox II";
         case "KJ Martin": return "Kenyon Martin Jr.";
         case "Larry Nance": return "Larry Nance Jr.";
+        case "Dereck Lively": return "Dereck Lively II";
+        case "Michael Porter": return "Michael Porter Jr.";
     }
     return name;
 }
-
 
 
 function getOpp(gameInfo, team){
@@ -548,12 +550,12 @@ async function getPlayerInfo(){
             var injured = row.insertCell(6);
 
             var player = r.cells[1].innerHTML;
-            if(player in data){
-                if(player in savedData) pct.innerHTML = '<input type="range" value="'+savedData[player]+'" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>'+savedData[player]+'</text>'; else{
+            if(player in savedData) {
+                pct.innerHTML = '<input type="range" value="'+savedData[player]+'" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>'+savedData[player]+'</text>';
+            } else if(player in data){
                     pct.innerHTML = '<input type="range" value="'+(data[player]['FPTS_PCT_OF_TEAM'])+'" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>'+data[player]['FPTS_PCT_OF_TEAM'].toFixed(2)+'</text>';
-                }
             } else{
-                pct.innerHTML = '<input type="range" value="0" min="0" max="0.3" step="0.01" oninput="updateProj(this)"><text>0</text>';
+                pct.innerHTML = '<input type="range" value="0" min="0" max="0.3" step="0.001" oninput="updateProj(this)"><text>0</text>';
             }
             name.innerHTML = r.cells[1].innerHTML;
             team.innerHTML = r.cells[3].innerHTML;
@@ -1491,4 +1493,62 @@ function colorByScale(min, max, value){
     }
     var h = r * 0x10000 + g * 0x100 + b * 0x1;
     return '#' + ('000000' + h.toString(16)).slice(-6);
+}
+
+// Update odds-to-hit table
+// Table should show odds of players hitting each target score
+// GPP Need will be 20 + salary/60000 * 220
+// odds to hit will be percent chance of hitting GPP Need with mean Projection and standard deviation 5 + proj/10
+async function updateOddsToHit(){
+    let promise = new Promise((resolve) => {
+        var players = document.getElementById("contestDataTable").rows;
+        var table = document.getElementById("oddsTable");
+        
+        for(let i = 1; i < players.length; i++){
+            let player = players[i];
+            let position = player.cells[0].innerHTML;
+            let name = player.cells[1].innerHTML;
+            let proj = Number(player.cells[7].innerHTML);
+            let salary = Number(player.cells[2].innerHTML);
+            let team = player.cells[3].innerHTML;
+            let gppNeed = 20 + salary/60000 * 220;
+            let odds = 1-normDist(gppNeed, proj, 5 + proj/10);
+            let row = table.insertRow(-1);
+            row.insertCell(0).innerHTML = name;
+            row.insertCell(1).innerHTML = position;
+            row.insertCell(2).innerHTML = team;
+            row.insertCell(3).innerHTML = salary;
+            row.insertCell(4).innerHTML = proj;
+            row.insertCell(5).innerHTML = gppNeed.toFixed(1);
+            row.insertCell(6).innerHTML = (odds*100).toFixed(1);
+            row.style.backgroundColor = getTeamColor(team);
+            row.style.color = getTeamSecondaryColor(team);
+            row.cells[6].style.backgroundColor = colorByScale(0, 100, odds*100);
+            row.cells[6].style.color = "black";
+        }
+        resolve();
+    });
+    promise.then(() => {
+        sortTable(document.getElementById("oddsTable"), 6);
+    });
+
+}
+
+function normDist(x, mean, std){
+    return 0.5 * (1 + erf((x - mean)/(std * Math.sqrt(2))));
+}
+
+function erf(x){
+    var a1 = 0.254829592;
+    var a2 = -0.284496736;
+    var a3 = 1.421413741;
+    var a4 = -1.453152027;
+    var a5 = 1.061405429;
+    var p = 0.3275911;
+    var sign = 1;
+    if(x < 0) sign = -1;
+    x = Math.abs(x);
+    var t = 1/(1 + p*x);
+    var y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-x*x);
+    return sign*y;
 }

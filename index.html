@@ -17,6 +17,7 @@
     <div id="tabs" class="holdTop">
         <button id="contestInfo" class="tab" onclick="openTab('contest')">Contest Data</button>
         <button id="playerInfo" class="tab" onclick="openTab('player')">Player Data</button>
+        <button id="oddsToHit" class="tab" onclick="{openTab('odds'); updateOddsToHit()}">Odds to Hit</button>
         <button id="builderInfo" class="tab" onclick="openTab('builder')">Builder</button>
         <button id="ownershipInfo" class="tab" onclick="{openTab('ownership'); updateOwnership()}">Ownership</button>
     </div>
@@ -162,6 +163,23 @@
             </tbody>
         </table>
     </div>  
+    <div id="odds" class="content">
+        <table id="oddsTable">
+            <thead>
+                <tr class="holdTop" style="top:45px">
+                    <th>Player</th>
+                    <th>Position</th>
+                    <th>Team</th>
+                    <th>Salary</th>
+                    <th>Projection</th>
+                    <th>GPP Need</th>
+                    <th>Odds to Hit</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
 
     <script type="text/javascript" src="nbascript.js"></script>
 </body>
