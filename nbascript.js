@@ -781,14 +781,15 @@ async function buildLineups(){
                 
                 var result = solver.Solve(model);
                 console.log(result);
+                console.log(players);
                 addLineupToTable(result, players);
             }); 
         });
     }
 }
 
-async function buildLineupsFD(){
-    var lineupsToBuild = document.getElementById("lineupsToBuildFD").value;
+async function buildLineupsFD(only_one_lineup = false){
+    if(only_one_lineup) var lineupsToBuild = 1; else var lineupsToBuild = document.getElementById("lineupsToBuildFD").value;
     
     for(let i = 0; i < lineupsToBuild; i++){
         
@@ -811,22 +812,30 @@ async function buildLineupsFD(){
                 if(player.Position.includes("PG")){ 
                     player['PG'] = 1;
                     player['UTIL'] = 1;
+                    player['G'] = 1;
                 }
                 if(player.Position.includes("SG")){ 
                     player['SG'] = 1;
                     player['UTIL'] = 1;
+                    player['G'] = 1;
+                    player['S'] = 1;
                 }
                 if(player.Position.includes("SF")){ 
                     player['SF'] = 1;
                     player['UTIL'] = 1;
+                    player['F'] = 1;
+                    player['S'] = 1;
                 }
                 if(player.Position.includes("PF")){ 
                     player['PF'] = 1;
                     player['UTIL'] = 1;
+                    player['F'] = 1;
+                    player['B'] = 1;
                 }
                 if(player.Position.includes("C")){ 
                     player['C'] = 1;
                     player['UTIL'] = 1;
+                    player['B'] = 1;
                 }
                 player[player.Team] = 1;
                 
@@ -842,42 +851,56 @@ async function buildLineupsFD(){
         });
 
         promise.then((players) => {
+
         // solve for max projection with constraints
             require(['solver'], function(solver){
-                var teams = [];
-                var opponents = {};
-                for(let p in players){
-                    if(!players[p].Team in teams) {
-                        teams.push(players[p].Team);
-                        opponents[players[p].Team] = players[p].Opponent;
+                let promise = new Promise((resolve) => {
+                    var teams = [];
+                    var opponents = {};
+                    for(let p in players){
+                        if(!teams.includes(players[p].Team)) {
+                            teams.push(players[p].Team);
+                            opponents[players[p].Team] = players[p].Opponent;
+                        }
+                        players[p][alphabetize(players[p].Team, players[p].Opponent)] = 1;
                     }
-                    players[p][alphabetize(players[p].Team, players[p].Opponent)] = 1;
-                }
-                var model = {
-                    "optimize": "Projected",
-                    "opType": "max",
-                    "constraints": {
-                        "PG": {"min": 2, "max": 4},
-                        "SG": {"min": 2, "max": 4},
-                        "SF": {"min": 2, "max": 4},
-                        "PF": {"min": 2, "max": 4},
-                        "C": {"min": 1, "max": 3},
-                        "UTIL": {"equal": 9},
-                        "Salary": {"max": 60000}
-                    },
-                    "variables": players,
-                    "binaries": players
-                };
+                    var model = {
+                        "optimize": "Projected",
+                        "opType": "max",
+                        "constraints": {
+                            "PG": {"min": 2, "max": 4},
+                            "SG": {"min": 2, "max": 6},
+                            "SF": {"min": 2, "max": 6},
+                            "PF": {"min": 2, "max": 5},
+                            "C": {"min": 1, "max": 3},
+                            "UTIL": {"equal": 9},
+                            "Salary": {"max": 60000},
+                            "B": {"equal": 3},
+                            "S": {"equal": 4},
+                            "G": {"equal": 4},
+                            "F": {"equal": 4}
+                        },
+                        "variables": players,
+                        "binaries": players
+                    }
+                    console.log(teams);
 
-                for(let t of teams){
-                    model.constraints[t] = {"max": 4};
-                    let game = alphabetize(t, opponents[t]);
-                    model.constraints[game] = {"max": 7};
-                }
-                
-                var result = solver.Solve(model);
-                console.log(result);
-                addLineupToTableFD(result, players);
+                    for(let t of teams){
+                        model.constraints[t] = {"max": 4};
+                        let game = alphabetize(t, opponents[t]);
+                        model.constraints[game] = {"max": 7};
+                    }
+                    resolve([model, players]);
+                });
+                promise.then((data) => { 
+                    var model = data[0];
+                    var players = data[1];
+                    console.log(model);
+                    require(['solver'], function(solver){
+                        var result = solver.Solve(model);
+                        addLineupToTableFD(result, players);
+                    });
+                });
             }); 
         });
     }
@@ -934,9 +957,9 @@ function addLineupToTable(result, players){
 function addLineupToTableFD(result, players){
     var table = document.getElementById("lineupTableFD");
     var row = table.insertRow(-1);
-
     var lineupPlayers = [];
     for(let p in result){
+        if(["feasible", "bounded", "result", "bounded", "isIntegral"].includes(p)) continue;
         if(players[p] != undefined) lineupPlayers.push(players[p]);
     }
     var totalSalary = 0;
@@ -954,6 +977,7 @@ function addLineupToTableFD(result, players){
     if(!orderIsCorrect){
         table.deleteRow(row.rowIndex);
         console.log("Could not find valid lineup");
+        buildLineupsFD(true);
         return;
     }
     for(let p of lineupPlayers){
@@ -1167,7 +1191,7 @@ function downloadEditedLineupsFD(){
         if(l.rowIndex == 0) continue;
         var row = [];
         for(let c of l.cells){
-            if(c.cellIndex >= 8) continue;
+            if(c.cellIndex >= 9) continue;
             row.push(c.innerHTML.split("<br>")[1]);
         }
 
@@ -1181,6 +1205,7 @@ function downloadEditedLineupsFD(){
     for(let l of previousLineups){
         csv += l.join(",") + "\n";
     }
+    console.log(csv);
     //csv += previousLineups.join("\n");
     var encodedUri = encodeURI(csv);
 
@@ -1503,6 +1528,9 @@ async function updateOddsToHit(){
     let promise = new Promise((resolve) => {
         var players = document.getElementById("contestDataTable").rows;
         var table = document.getElementById("oddsTable");
+        while(table.rows.length > 1){
+            table.deleteRow(1);
+        }
         
         for(let i = 1; i < players.length; i++){
             let player = players[i];
