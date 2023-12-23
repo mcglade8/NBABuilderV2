@@ -67,7 +67,6 @@ fixTeamAbbrev = (team) => {
 
 // Populates the table with data from contestData
 function addTableRows(contestData){
-    console.log(contestData);
     var table = document.getElementById("contestDataTable");
     var ids = [];
     var rows = table.rows;
@@ -158,6 +157,8 @@ convertToFDName = (name) => {
         case "Larry Nance": return "Larry Nance Jr.";
         case "Dereck Lively": return "Dereck Lively II";
         case "Michael Porter": return "Michael Porter Jr.";
+        case "Craig Porter": return "Craig Porter Jr.";
+        case "Jaime Jaquez": return "Jaime Jaquez Jr.";
     }
     return name;
 }
@@ -526,8 +527,7 @@ async function getPlayerInfo(){
     }).then((info) => {
         var data = info[0];
         var teamFpts = info[1];
-        console.log(data);
-        console.log(teamFpts);
+
         if(localStorage.savedPlayerDataNBA){
             var savedData = JSON.parse(localStorage.savedPlayerDataNBA);
         }else{
@@ -780,8 +780,7 @@ async function buildLineups(){
                 }
                 
                 var result = solver.Solve(model);
-                console.log(result);
-                console.log(players);
+
                 addLineupToTable(result, players);
             }); 
         });
@@ -875,15 +874,14 @@ async function buildLineupsFD(only_one_lineup = false){
                             "C": {"min": 1, "max": 3},
                             "UTIL": {"equal": 9},
                             "Salary": {"max": 60000},
-                            "B": {"equal": 3},
-                            "S": {"equal": 4},
-                            "G": {"equal": 4},
-                            "F": {"equal": 4}
+                            "B": {"min": 3},
+                            "S": {"min": 4},
+                            "G": {"min": 4},
+                            "F": {"min": 4}
                         },
                         "variables": players,
                         "binaries": players
                     }
-                    console.log(teams);
 
                     for(let t of teams){
                         model.constraints[t] = {"max": 4};
@@ -895,7 +893,7 @@ async function buildLineupsFD(only_one_lineup = false){
                 promise.then((data) => { 
                     var model = data[0];
                     var players = data[1];
-                    console.log(model);
+                    console.log(players);
                     require(['solver'], function(solver){
                         var result = solver.Solve(model);
                         addLineupToTableFD(result, players);
@@ -1198,14 +1196,14 @@ function downloadEditedLineupsFD(){
         var index = l.rowIndex;
         if(index > previousLineups.length) index = previousLineups.length;
         for(let i = 0; i < row.length; i++){
-
-            previousLineups[index][i+3] = row[i];
+            let num = i+3;
+            previousLineups[index][num] = row[i];
         }
     }
     for(let l of previousLineups){
         csv += l.join(",") + "\n";
     }
-    console.log(csv);
+
     //csv += previousLineups.join("\n");
     var encodedUri = encodeURI(csv);
 
@@ -1392,7 +1390,6 @@ async function applyInjury(player, team){
                 }
                 );
                 promise.then((values) => {
-                    console.log(att);
                     r.cells[2].setAttribute(att, 1+values[2]);
                     r.cells[3].setAttribute(att, 1+values[3]);
 
@@ -1400,7 +1397,6 @@ async function applyInjury(player, team){
                     r.cells[3].getElementsByTagName("input")[0].value = values[1];
                     return "done";
                 }).then((str) => {
-                    console.log(str);
                     updateProj(r.cells[2].getElementsByTagName("input")[0]);
                     updateProj(r.cells[3].getElementsByTagName("input")[0]);
                 });
@@ -1450,7 +1446,6 @@ async function removeInjury(player, team){
                         r.cells[3].getElementsByTagName("input")[0].value = values[1];
                         return "done";
                     }).then((str) => {
-                        console.log(str);
                         updateProj(r.cells[2].getElementsByTagName("input")[0]);
                         updateProj(r.cells[3].getElementsByTagName("input")[0]);
                     });
@@ -1469,7 +1464,6 @@ async function removeInjury(player, team){
                         r.cells[3].getElementsByTagName("input")[0].value = values[1];
                         return "done";
                     }).then((str) => {
-                        console.log(str);
                         updateProj(r.cells[2].getElementsByTagName("input")[0]);
                         updateProj(r.cells[3].getElementsByTagName("input")[0]);
                     });
