@@ -20,6 +20,7 @@
         <button id="oddsToHit" class="tab" onclick="{openTab('odds'); updateOddsToHit()}">Odds to Hit</button>
         <button id="builderInfo" class="tab" onclick="openTab('builder')">Builder</button>
         <button id="ownershipInfo" class="tab" onclick="{openTab('ownership'); updateOwnership()}">Ownership</button>
+        <button id="matchupsInfo" class="tab" onclick="openTab('matchups')">Matchups</button>
     </div>
     <div id="contest" style="display:block" class="content">
         <div class="downloadChunk holdTop" style="top:45px">Import CSV: <input type="file" id="dksalaries" onchange="handlecsv('dksalaries')"></div>
@@ -32,9 +33,9 @@
                     <th>Team</th>
                     <th>Opponent</th>
                     <th>ID</th>
-                    <th>Pct FPs</th>
                     <th>Projected</th>
                     <th>Value</th>
+                    <th>Own</th>
                 </tr>
             </thead>
             <tbody id="contestTable">
@@ -44,16 +45,33 @@
     </div>
     <div id="player" class="content">
         <div class="downloadChunk holdTop" style="top:45px">
-            <select id="teamSelect" oninput="filterByTeam(this, 'playerAdjustTable')">
+            Team
+            <select id="teamSelect" oninput="filterPATable()">
                 <option value="All">All</option>
+            </select>
+            Position
+            <select id="positionSelect" oninput="filterPATable()">
+                <option value="All">All</option>
+                <option value="PG">PG</option>
+                <option value="SG">SG</option>
+                <option value="SF">SF</option>
+                <option value="PF">PF</option>
+                <option value="C">C</option>
+            </select>
+            Status
+            <select id="playSelect" oninput="filterPATable()">
+                <option value="All">All</option>
+                <option value="Top Play">Top Play</option>
+                <option value="In Pool">In Pool</option>
+                <option value="Removed">Removed</option>
             </select>
             <button onclick="resetPlayerAdjustTable()">Reset</button>
         </div>
         <table id="teamSummary" class="holdTop"  style="top:102px">
             <thead>
                 <th>Team</th>
-                <th>Percent Used</th>
-                <th>Avg FPs</th>
+                <th>FPs</th>
+                <th>Count</th>
             </thead>
             <tbody>
 
@@ -65,10 +83,9 @@
                     <th>Player</th>
                     <th>Position</th>
                     <th>Team</th>
-                    <th>Team FPs</th>
-                    <th style="width:560px">Percent of FPs</th>
-                    <th style="width:140px">Proj</th>
-                    <th>Injured</th>
+                    <th style="width:500px">Proj</th>
+                    <th style="width:100px">Injured</th>
+                    <th style="width:100">Top Play</th>
                 </tr>
             </thead>
             <tbody>
@@ -77,8 +94,13 @@
         </table>
     </div>
     <div id="builder" class="content">
-        <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuild" value="20" min="1">
-        <button class="buildLineups classicBuilder" onclick="buildLineups()">Build Lineups</button></div>
+        <div class="downloadChunk holdTop" style="top: 45px;">
+        Lineups to build: <input type="number" id="lineupsToBuild" value="100" min="1" style="width:40px">
+        Min Top Plays: <input type="number" id="minTopPlaysDK" value="6" min="0" max="8" style="width:40px">
+        <button class="buildLineups classicBuilder" onclick="buildLineups()">Build Lineups</button>
+        Top X lineups: <input type="number" id="lineupsToFilter" value="20" min="1" style="width:40px"> <button class="buildLineups classicBuilder" onclick="filterLineups()">Filter Lineups</button>
+        Variance: <input type="range" id="variance" min="0" max="50" value="12"oninput="updateVariance()" style="width:200px;vertical-align: middle;">
+    </div>
         <div class="csvSection holdTop" style="top:102px">
             <!--<label style="float:none" for="contestcsv">Import salaries: </label><input type="file" name="contestcsv" id="contestcsv" oninput="handlecsv('contestcsv')">-->
             <div class="downloadChunk holdTop"  style="top: 102px;"><button onclick="downloadLineups()" class="downloadLineupsButton classicBuilder">Download Lineups for Initial Upload</button></div>
@@ -112,8 +134,10 @@
         </div>
     </div>
     <div id="fdBuilder" class="content">
-        <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuildFD" value="20" min="1">
-        <button class="buildLineups classicBuilder" onclick="buildLineupsFD(false)">Build Lineups</button></div>
+        <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuildFD" value="20" min="1"> Min Top Plays: <input type="number" id="minTopPlaysFD" value="6" min="0" max="9" style="width:40px">
+        Variance: <input type="range" id="varianceFD" min="0" max="50" value="12" oninput="updateVarianceFD()" style="width:200px;vertical-align: middle;">
+        <button class="buildLineups classicBuilder" onclick="buildLineupsFD(false)">Build Lineups</button>
+    </div>
         <div class="csvSection holdTop" style="top:102px">
             <!--<label style="float:none" for="contestcsv">Import salaries: </label><input type="file" name="contestcsv" id="contestcsv" oninput="handlecsv('contestcsv')">-->
             <div class="downloadChunk holdTop"  style="top: 102px;"><button onclick="downloadLineupsFD()" class="downloadLineupsButton classicBuilder">Download Lineups for Initial Upload</button></div>
@@ -180,7 +204,23 @@
                 
             </tbody>
         </table>
-
+    </div>
+    <div id="matchups" class="content">
+        <div class="downloadChunk holdTop" style="top:45px">
+            <button onclick="resetMatchups()">Reset Matchups</button>
+        </div>
+        <table id="matchupsTable">
+            <thead>
+                <tr class="holdTop" style="top:89px">
+                    <th style="width: 20%">Team</th>
+                    <th style="width: 60%">Odds To Win</th>
+                    <th>Opponent</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
     <script type="text/javascript" src="nbascript.js"></script>
 </body>
 
