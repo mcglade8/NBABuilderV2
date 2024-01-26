@@ -515,7 +515,7 @@ async function getPlayerInfo(){
     let promise = new Promise((resolve) => {
 
 
-    resolve(getInfoFromJson("data_from_google_sheets.json"));
+        resolve(getInfoFromJson("data_from_google_sheets.json"));
     });
 
     promise.then((data) => {
@@ -548,6 +548,7 @@ async function getPlayerInfo(){
             var ownership = r.cells[8];
             if(player in data){ 
                 r.cells[5].innerHTML.includes("-") ? ownership.innerHTML = data[player]['FDOwn'] : ownership.innerHTML = data[player]['DKOwn'];
+                var isTopPlay = data[player]['TopPlayFD'];
             }else{
                 ownership.innerHTML = 0;
             }
@@ -566,7 +567,7 @@ async function getPlayerInfo(){
                 var removedFromPool = {};
             }
 
-            if(player in topPlays || Number(ownership.innerHTML) > 15){
+            if(isTopPlay || player in topPlays){
                 topPlay.innerHTML = '<button class="topPlay" onclick="togglePlay(this)">Top Play</button>';
             } else if(player in removedFromPool){
                 topPlay.innerHTML = '<button class="removedFromPool" onclick="togglePlay(this)">Removed</button>';
