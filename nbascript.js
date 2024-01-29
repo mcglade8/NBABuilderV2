@@ -552,6 +552,8 @@ async function getPlayerInfo(){
                 var isRemoved = data[player]['RemovedFD'];
             }else{
                 ownership.innerHTML = 0;
+                var isTopPlay = 0;
+                var isRemoved = 0;
             }
 
             injured.innerHTML = '<button class="healthy" onclick="toggleInjured(this)">Healthy</button>';
@@ -568,11 +570,11 @@ async function getPlayerInfo(){
                 var removedFromPool = {};
             }
 
-            if(isTopPlay || player in topPlays){
-                topPlay.innerHTML = '<button class="topPlay" onclick="togglePlay(this)">Top Play</button>';
-            } else if(isRemoved || player in removedFromPool){
+            if(isRemoved || player in removedFromPool){
                 topPlay.innerHTML = '<button class="removedFromPool" onclick="togglePlay(this)">Removed</button>';
-            } else{
+            } else if(isTopPlay || player in topPlays){
+                topPlay.innerHTML = '<button class="topPlay" onclick="togglePlay(this)">Top Play</button>';
+            } else {
                 topPlay.innerHTML = '<button class="inPool" onclick="togglePlay(this)">In Pool</button>';
             }
         }
