@@ -549,6 +549,7 @@ async function getPlayerInfo(){
             if(player in data){ 
                 r.cells[5].innerHTML.includes("-") ? ownership.innerHTML = data[player]['FDOwn'] : ownership.innerHTML = data[player]['DKOwn'];
                 var isTopPlay = data[player]['TopPlayFD'];
+                var isRemoved = data[player]['RemovedFD'];
             }else{
                 ownership.innerHTML = 0;
             }
@@ -569,7 +570,7 @@ async function getPlayerInfo(){
 
             if(isTopPlay || player in topPlays){
                 topPlay.innerHTML = '<button class="topPlay" onclick="togglePlay(this)">Top Play</button>';
-            } else if(player in removedFromPool){
+            } else if(isRemoved || player in removedFromPool){
                 topPlay.innerHTML = '<button class="removedFromPool" onclick="togglePlay(this)">Removed</button>';
             } else{
                 topPlay.innerHTML = '<button class="inPool" onclick="togglePlay(this)">In Pool</button>';
