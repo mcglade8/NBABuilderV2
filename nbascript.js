@@ -147,7 +147,7 @@ convertToFDName = (name) => {
         case "Jabari Smith": return "Jabari Smith Jr.";
         case "Trey Murphy": return "Trey Murphy III";
         case "Kelly Oubre": return "Kelly Oubre Jr.";
-        case "Marvin Bagley": return "Marvin Bagley III";
+        //case "Marvin Bagley": return "Marvin Bagley III";
         case "Vince Williams": return "Vince Williams Jr.";
         case "Marcus Morris": return "Marcus Morris Sr.";
         case "Gary Trent": return "Gary Trent Jr.";
@@ -570,7 +570,7 @@ async function getPlayerInfo(){
                 var removedFromPool = {};
             }
 
-            if(isRemoved || player in removedFromPool){
+            if(isRemoved || player in removedFromPool || proj.getElementsByTagName("input")[0].value == 0){
                 topPlay.innerHTML = '<button class="removedFromPool" onclick="togglePlay(this)">Removed</button>';
             } else if(isTopPlay || player in topPlays){
                 topPlay.innerHTML = '<button class="topPlay" onclick="togglePlay(this)">Top Play</button>';
@@ -1011,7 +1011,6 @@ async function buildLineupsFD(only_one_lineup = false){
             var players = data[1];
             require(['solver'], function(solver){
                 var result = solver.Solve(model);
-                console.log(players);
                 addLineupToTableFD(result, players);
             });
         });
@@ -1086,7 +1085,7 @@ function addLineupToTableFD(result, players){
     while(!orderIsCorrect){
         orderIsCorrect = checkOrderFD(lineupPlayers);
         if(!orderIsCorrect) lineupPlayers = shuffle(lineupPlayers);
-        if(Date.now() - beginLoop > 1000) break;
+        if(Date.now() - beginLoop > 15) break;
     }
     if(!orderIsCorrect){
         table.deleteRow(row.rowIndex);
