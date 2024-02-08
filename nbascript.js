@@ -243,6 +243,7 @@ $(document).ready(async function(){
         colorRowsBasedOnTeam(document.getElementById('playerAdjustTable'), 2);
         return applyInjuries();
     }).then(() => {
+        filterPATable();
         return fillTeamMatchups();
     });
 });
