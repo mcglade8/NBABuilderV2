@@ -21,6 +21,7 @@
         <button id="builderInfo" class="tab" onclick="openTab('builder')">Builder</button>
         <button id="ownershipInfo" class="tab" onclick="{openTab('ownership'); updateOwnership()}">Ownership</button>
         <button id="matchupsInfo" class="tab" onclick="openTab('matchups')">Matchups</button>
+        <button id="lateSwapInfo" class="tab" onclick="openTab('lateSwap')">Late Swap</button>
     </div>
     <div id="contest" style="display:block" class="content">
         <div class="downloadChunk holdTop" style="top:45px">Import CSV: <input type="file" id="dksalaries" onchange="handlecsv('dksalaries')"></div>
@@ -221,6 +222,16 @@
                 
             </tbody>
         </table>
+    </div>
+    <div id="lateSwap" class="content">
+        <div class="downloadChunk holdTop" style="top:45px">
+            Current Lineups: <input type="file" id="current-lineup-upload" oninput="fillTableForLateSwap()">
+            <button onclick="lateSwapLineups()">Late Swap!</button>
+        </div>
+        <table id="late-swap-table">
+            
+        </table>
+    </div>
     <script type="text/javascript" src="nbascript.js"></script>
 </body>
 

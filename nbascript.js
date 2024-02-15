@@ -129,7 +129,7 @@ function addTableRows(contestData){
         }
     }
     savetableDataNBA();
-    
+    resetMatchups();
     location.reload();
 }
 
@@ -548,9 +548,15 @@ async function getPlayerInfo(){
 
             var ownership = r.cells[8];
             if(player in data){ 
-                r.cells[5].innerHTML.includes("-") ? ownership.innerHTML = data[player]['FDOwn'] : ownership.innerHTML = data[player]['DKOwn'];
-                var isTopPlay = data[player]['TopPlayFD'];
-                var isRemoved = data[player]['RemovedFD'];
+                if(r.cells[5].innerHTML.includes("-")){
+                    ownership.innerHTML = data[player]['FDOwn'];
+                    var isTopPlay = data[player]['TopPlayFD'];
+                    var isRemoved = data[player]['RemovedFD'];
+                }else{
+                    ownership.innerHTML = data[player]['DKOwn'];
+                    var isTopPlay = data[player]['TopPlayDK'];
+                    var isRemoved = data[player]['RemovedDK'];
+                }
             }else{
                 ownership.innerHTML = 0;
                 var isTopPlay = 0;
@@ -1111,8 +1117,8 @@ function addLineupToTableFD(result, players){
     document.getElementById('lineupsBuiltFD').innerHTML = Number(document.getElementById('lineupsBuiltFD').innerHTML) + 1;
 }
 
-function checkOrder(lineup){
-    var order = ["PG", "SG", "SF", "PF", "C", "G", "F"];
+function checkOrder(lineup, order = ["PG", "SG", "SF", "PF", "C", "G", "F"]){
+    
     for(let i = 0; i < order.length; i++){
         if(!lineup[i].Position.includes(order[i])) return false;
     }
@@ -1955,4 +1961,220 @@ function resetMatchups(){
     }
     localStorage.removeItem("teamMatchups");
     fillTeamMatchups();
+}
+
+// Late swap: same as optimizer but only optimize for players who have not yet played
+function fillTableForLateSwap(){
+    // get current lineups uploaded by the user
+    var lineups = document.getElementById("current-lineup-upload").files[0];
+    var reader = new FileReader();
+    // add lineups to lineupTable
+    reader.onload = function(e){
+        var csv = e.target.result;
+        var lines = csv.split("\n");
+        var result = [];
+        var headers = lines[0].split(",");
+        for(let i = 0; i < lines.length; i++){
+            var obj = [];
+            var currentline = lines[i].split(",");
+            for(let j = 0; j <= 11; j++){
+                obj[j] = currentline[j];
+            }
+            result.push(obj);
+        }
+        var lineupTable = document.getElementById("late-swap-table");
+        while(lineupTable.rows.length > 1){
+            lineupTable.deleteRow(1);
+        }
+        for(let i = 0; i < result.length; i++){
+            var l = result[i];
+            var row = lineupTable.insertRow(-1);
+            for(let j = 0; j < l.length; j++){
+                var cell = row.insertCell(-1);
+                if(i == 0){
+                    cell.innerHTML = l[j];
+                    cell.style.background = "linear-gradient(#858585, #e7e7e7)";
+                    cell.style.color = "#000000";
+                    cell.style.fontWeight = "bold";
+                }else if(j < 4){
+                    cell.innerHTML = l[j];
+                    cell.style.background = "#BBBBBB";
+                    cell.style.color = "#000000";
+                    cell.style.fontWeight = "bold";
+                }else{
+                    var p = l[j];
+                    cell.innerHTML = getPlayerDataForLineup(p);
+                    var team = cell.innerHTML.split("<br>")[2];
+                    cell.style.backgroundColor = getTeamColor(team);
+                    cell.style.color = getTeamSecondaryColor(team);
+                }
+            }
+        }
+    }
+    reader.readAsText(lineups);
+}
+
+function getPlayerDataForLineup(p){
+    var contest_data = document.getElementById("contestDataTable").rows;
+    for(let i = 1; i < contest_data.length; i++){
+        let player = contest_data[i];
+        if(player.cells[5].innerHTML == p){
+            return player.cells[1].innerHTML + "<br>" + player.cells[2].innerHTML + "<br>" + player.cells[3].innerHTML + "<br>" + p;
+        }
+    }
+}
+
+// Late swap: same as optimizer but only optimize for players who have not yet played
+function lateSwapLineups(){
+    var lineupTable = document.getElementById("late-swap-table").rows;
+    for(let r of lineupTable){
+        let lineup = [];
+        for(let c of r.cells){
+            if(c.cellIndex < 4) continue;
+            lineup.push(c.innerHTML.split("<br>")[3]);
+        }
+        if(r.rowIndex == 0) continue;
+        lateSwapThisLineup(lineup, r.rowIndex);
+    }
+}
+
+function lateSwapThisLineup(lineup, row_index){
+    var player_info = getInfoFromJSON("data_from_google_sheets.json");
+    var contest_data_table = document.getElementById("contestDataTable").rows;
+    var possible_pool = [];
+    var players_to_swap = [];
+    var salary_cap = 50000;
+    console.log(player_info);
+    for(let i = 1; i < contest_data_table.length; i++){
+        let row = contest_data_table[i];
+        let name = row.cells[1].textContent;
+        console.log(name);
+        if(name == undefined) continue;
+        // continue if player's game has started
+        let event_info = player_info[name]["event-info"].split(" ");
+        let game_time = new Date(event_info[1] + " " + event_info[2] + " " + event_info[3]);
+        let current_time = new Date();
+        if(game_time < current_time) {
+            if(lineup.includes(row.cells[5].textContent)){
+                salary_cap -= Number(row.cells[2].textContent);
+            }
+            continue;
+        }
+        // add player to possible pool
+        let player = player_info[row.cells[1].textContent];
+        player["salary"] = row.cells[2].textContent;
+        player["position"] = row.cells[0].textContent;
+        possible_pool.push(player);
+        if(lineup.includes(row.cells[5].textContent)){
+            players_to_swap.push(getPositionFromIndex(lineup.indexOf(row.cells[5].textContent)));
+        }
+    }
+
+    swaptimize(players_to_swap, possible_pool, salary_cap, row_index);
+}
+
+function getPositionFromIndex(index){
+    if(index==0) return "PG";
+    else if(index==1) return "SG";
+    else if(index==2) return "SF";
+    else if(index==3) return "PF";
+    else if(index==4) return "C";
+    else if(index==5) return "G";
+    else if(index==6) return "F";
+    else if(index==7) return "UTIL";
+}
+
+async function swaptimize(players_to_swap, possible_pool, salary_cap, row_index){
+    // use the solver to find the best players that fit the position-to-swap 
+    // the max salary cap for the new players is salary_cap
+    // positions of new players are the inverse of getPositionsFromIndex
+    // players_to_swap should include the positions of the players to swap
+    var lineups = document.getElementById("late-swap-table").rows;
+    let promise = new Promise((resolve) => {
+        for(let p of possible_pool){
+            p = randomizeProjection(p, getBlowouts());
+            resolve(p);
+        }
+    });
+    promise.then((p) => {
+    
+        var solver = new Solver();
+        var players = [];
+        var constraints = {
+            "PG": {"min": 0},
+            "SG": {"min": 0},
+            "SF": {"min": 0},
+            "PF": {"min": 0},
+            "C": {"min": 0},
+            "G": {"min": 0},
+            "F": {"min": 0},
+            "UTIL": {"equal": 0},
+            "Salary": {"max": salary_cap}
+        };
+        for(let p of possible_pool){
+            let possible_positions = [];
+            if("PG" in p["positions"]) possible_positions.push("PG");
+            if("SG" in p["positions"]) possible_positions.push("SG");
+            if("SF" in p["positions"]) possible_positions.push("SF");
+            if("PF" in p["positions"]) possible_positions.push("PF");
+            if("C" in p["positions"]) possible_positions.push("C");
+            if("G" in p["positions"]) possible_positions.push("G");
+            if("F" in p["positions"]) possible_positions.push("F");
+            possible_positions.push("UTIL");
+            for(let pos of possible_positions){
+                p[pos] = 1;
+            }
+            for(let pos of players_to_swap){
+                if(!players.includes(p) && pos in p && p[pos] == 1){
+                    players.push(p);
+                }
+            }
+        }
+        for(let pos of players_to_swap){
+            constraints[pos]["min"] =+ 1;
+        }
+
+        constraints["UTIL"]["equal"] = players_to_swap.length;
+        
+        var model = {
+            "optimize": "Projection",
+            "opType": "max",
+            "constraints": constraints,
+            "variables": players,
+            "binaries": players
+        };
+        var solution = solver.Solve(model);
+        var lineup = [];
+        for(let p of players){
+            if(solution[p] == 1){
+                lineup.push(p);
+            }
+        }
+        var orderIsCorrect = false;
+        var beginLoop = Date.now();
+        while(!orderIsCorrect){
+            orderIsCorrect = checkOrder(lineupPlayers);
+            if(!orderIsCorrect) lineup = shuffle(lineup);
+            if(Date.now() - beginLoop > 1000) break;
+        }
+
+        for(let i = 0; i < players_to_swap.length; i++){
+            let p = players_to_swap[i];
+            let index = getIndexFromPosition(p) + 4;
+            lineups[row_index].cells[index].innerHTML = lineup[i]["Name"];
+        }
+
+    });
+}
+
+// opposite of getPositionFromIndex
+function getIndexFromPosition(pos){
+    if(pos=="PG") return 0;
+    else if(pos=="SG") return 1;
+    else if(pos=="SF") return 2;
+    else if(pos=="PF") return 3;
+    else if(pos=="C") return 4;
+    else if(pos=="G") return 5;
+    else if(pos=="F") return 6;
+    else if(pos=="UTIL") return 7;
 }
