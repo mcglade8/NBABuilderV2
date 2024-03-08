@@ -57,7 +57,7 @@ async function getContestData(DKSalariesNBA){
 fixTeamAbbrev = (team) => {
     switch(team){
         case "PHO": return "PHX";
-        case "NY": return "NYK";
+        //case "NY": return "NY";
         case "NO": return "NOP";
         case "SA": return "SAS";
         case "GS": return "GSW";
@@ -222,30 +222,47 @@ function openTab(element){
         tabs[i].style.display = "none";
     }
     if(element == "builder"){
-        if(document.getElementById('contestDataTable').rows[1].cells[5].innerHTML.includes("-")) element = "fdBuilder";
+        selectBuilder();
     }
     var tab = document.getElementById(element);
     tab.style.display = "block";
 }
 
+// toggle which builder should be displayed
+function selectBuilder(){
+    if(document.getElementById('dfs-site-btn').textContent == "FD"){ 
+        document.getElementById("fdBuilder").style.display = "block";
+        document.getElementById("dkBuilder").style.display = "none"; 
+    }else{
+        document.getElementById("fdBuilder").style.display = "none";
+        document.getElementById("dkBuilder").style.display = "block";
+    }
+}
+
 $(document).ready(async function(){
     let promise = new Promise((resolve) => {
-        loadtableDataNBA();
+        fillPlayersFromJSON();
         resolve();
+    //     loadtableDataNBA();
+    //     resolve();
+    // });
+    // promise.then(() => {
+    //     return getPlayerInfo();
+    // }).then(() => {
+        
+    //     return updateContestDataTable();
     });
     promise.then(() => {
-        return getPlayerInfo();
-    }).then(() => {
-        
-        return updateContestDataTable();
-    }).then(() => {
-        colorRowsBasedOnTeam(document.getElementById('contestDataTable'), 3);
-        colorRowsBasedOnTeam(document.getElementById('playerAdjustTable'), 2);
-        return applyInjuries();
-    }).then(() => {
-        filterPATable();
-        return fillTeamMatchups();
+        //colorRowsBasedOnTeam(document.getElementById('contestDataTable'), 3);
+        colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
+        fillTeamMatchups()
     });
+    
+    //     return applyInjuries();
+    // }).then(() => {
+    //     //filterPATable();
+    //     return fillTeamMatchups();
+    // });
 });
 
 function applyInjuries(){
@@ -512,7 +529,7 @@ function convertPlayerNameToKey(json){
 }
 
 // Get player info from JSON file
-async function getPlayerInfo(){
+/*async function getPlayerInfo(){
     let promise = new Promise((resolve) => {
 
 
@@ -525,7 +542,7 @@ async function getPlayerInfo(){
         var table = document.getElementById("playerAdjustTable");
         var contestDataTable = document.getElementById("contestDataTable");
         var savedData = localStorage.savedPlayerDataNBA ? JSON.parse(localStorage.savedPlayerDataNBA) : {};
-        var rows = contestDataTable.rows;
+        var rows = table.rows;
         var teams = [];
         for(let r of rows){
             if(r.rowIndex == 0) continue;
@@ -564,7 +581,7 @@ async function getPlayerInfo(){
             }
 
             injured.innerHTML = '<button class="healthy" onclick="toggleInjured(this)">Healthy</button>';
-            if(!teams.includes(r.cells[3].innerHTML)) teams.push(r.cells[3].innerHTML);
+            if(!teams.includes(r.cells[whichCol("playerAdjustTable", "Team")].textContent)) teams.push(r.cells[whichCol("playerAdjustTable", "Team")].textContent);
 
             if(localStorage.topPlaysNBA){
                 var topPlays = JSON.parse(localStorage.topPlaysNBA);
@@ -597,7 +614,7 @@ async function getPlayerInfo(){
         return;
     });    
 
-}
+}*/
 
 function togglePlay(btn){
     var player = btn.parentNode.parentNode.cells[0].innerHTML;
@@ -670,7 +687,8 @@ async function team240(){
 
 function filterPATable(){
     // only display rows which contain the criteria from teamSelect, positionSelect, and playSelect
-    var table = document.getElementById("playerAdjustTable");
+    var table_id = "playerAdjustTable";
+    var table = document.getElementById(table_id);
     var rows = table.rows;
     var teamSelect = document.getElementById("teamSelect");
     var positionSelect = document.getElementById("positionSelect");
@@ -682,12 +700,12 @@ function filterPATable(){
     var count = 0;
     for(let i = 1; i < rows.length; i++){
         let row = rows[i];
-        let rowTeam = row.cells[2].innerHTML;
-        let rowPosition = row.cells[1].innerHTML;
-        let rowPlay = row.cells[5].getElementsByTagName("button")[0].innerHTML;
+        let rowTeam = row.cells[whichCol(table_id, "Team")].innerHTML;
+        let rowPosition = row.cells[whichCol(table_id, "Position")].innerHTML;
+        let rowPlay = row.cells[whichCol(table_id, "Top Play")].getElementsByTagName("button")[0].innerHTML;
         if((team == "All" || rowTeam == team) && (position == "All" || rowPosition.includes(position)) && (play == "All" || rowPlay.includes(play))){
             row.style.display = "";
-            totalProj += Number(row.cells[3].getElementsByTagName("input")[0].value);
+            totalProj += Number(row.cells[whichCol(table_id, "Proj")].getElementsByTagName("input")[0].value);
             count++;
         }else{
             row.style.display = "none";
@@ -727,7 +745,7 @@ function updateProj(element){
         localStorage.savedPlayerDataNBA = JSON.stringify(savedData);
     }
 
-    updateContestDataTable();
+    //updateContestDataTable();
     filterPATable();
 }
 
@@ -748,8 +766,8 @@ async function updateContestDataTable(){
 
 async function buildLineups(only_one_lineup = false){
     if(only_one_lineup) var lineupsToBuild = 1; else var lineupsToBuild = document.getElementById("lineupsToBuild").value;
-
-    var adjustPlayers = document.getElementById("playerAdjustTable");
+    var t_id = "playerAdjustTable";
+    var adjustPlayers = document.getElementById(t_id);
 
     for(let i = 0; i < lineupsToBuild; i++){
         
@@ -757,18 +775,23 @@ async function buildLineups(only_one_lineup = false){
             resolve(getBlowouts());
         });
         promise.then((blowouts) => {
-            var table = document.getElementById("contestDataTable");
-            var rows = table.rows;
+            var rows = adjustPlayers.rows;
 
             var players = [];
             // get objects of all players from table and add to players
             // objects should have name as key and all other row info as values
             for(let i = 1; i < rows.length; i++){
-                var pool = adjustPlayers.rows[i].cells[5].firstElementChild.innerHTML;
+                var pool = rows[i].cells[whichCol(t_id, "Top Play")].firstElementChild.textContent;
                 var player = {};
                 for(let j = 0; j < rows[i].cells.length; j++){
+                    
                     let info = rows[0].cells[j].innerHTML;
-                    player[info] = rows[i].cells[j].innerHTML;
+                    if(rows[0].cells[j].textContent == "Proj"){
+                        info = "Projected";
+                        player[info] = rows[i].cells[j].getElementsByTagName("input")[0].value;
+                    }else{
+                        player[info] = rows[i].cells[j].innerHTML;
+                    }
                 }
                 if(player['Projected'] < 14 || pool == "Removed") continue;
                 if(pool == "Top Play"){ 
@@ -796,10 +819,11 @@ async function buildLineups(only_one_lineup = false){
                 }
                 player['UTIL'] = 1;
                 player[player.Team] = 1;
-
+                console.log(player);
                 player = randomizeProjection(player, blowouts);
-                players[player.Name] = player;
+                players[player.Player] = player;
             }
+            console.log(players);
 
             return(players);
         }).then((players) => {
@@ -851,6 +875,8 @@ async function buildLineups(only_one_lineup = false){
                 var model = data[0];
                 var players = data[1];
 
+                console.log(model);
+                console.log(players);
                 var result= solver.Solve(model);
                 addLineupToTable(result, players);
             }); 
@@ -909,7 +935,8 @@ function fibMe(num){
 
 async function buildLineupsFD(only_one_lineup = false){
     if(only_one_lineup) var lineupsToBuild = 1; else var lineupsToBuild = document.getElementById("lineupsToBuildFD").value;
-    
+    var t_id = "playerAdjustTable";
+
     for(let i = 0; i < lineupsToBuild; i++){
         
         let promise = new Promise((resolve) => {
@@ -917,23 +944,26 @@ async function buildLineupsFD(only_one_lineup = false){
         });
         promise.then((blowouts) => {
 
-            var table = document.getElementById("contestDataTable");
             var adjustPlayers = document.getElementById("playerAdjustTable");
-            var rows = table.rows;
+            var rows = adjustPlayers.rows;
             var players = [];
             // get objects of all players from table and add to players
             // objects should have name as key and all other row info as values
             for(let i = 1; i < rows.length; i++){
-                var pool = adjustPlayers.rows[i].cells[5].firstElementChild.innerHTML;
+                var pool = rows[i].cells[whichCol(t_id, "Top Play")].firstElementChild.textContent;
                 var player = {};
                 for(let j = 0; j < rows[i].cells.length; j++){
                     let info = rows[0].cells[j].innerHTML;
-                    player[info] = rows[i].cells[j].innerHTML;
+                    if(rows[0].cells[j].textContent == "Proj"){
+                        info = "Projected";
+                        player[info] = rows[i].cells[j].getElementsByTagName("input")[0].value;
+                    }else{
+                        player[info] = rows[i].cells[j].innerHTML;
+                    }
                 }
                 if(player['Projected'] < 14 || pool == "Removed") continue;
                 if(pool == "Top Play"){ 
                     player['Top Play'] = 1; 
-                    //console.log(player['Name']);
                 }else player['Top Play'] = 0;                // Add position to player object with value 1
                 if(player.Position.includes("PG")){ 
                     player['PG'] = 1;
@@ -967,7 +997,7 @@ async function buildLineupsFD(only_one_lineup = false){
                 
 
                 player = randomizeProjection(player, blowouts);
-                players[player.Name] = player;
+                players[player.Player] = player;
             }
             var topPlays = document.getElementById("minTopPlaysFD").value;
 
@@ -1054,12 +1084,13 @@ function addLineupToTable(result, players){
     if(!orderIsCorrect){
         table.deleteRow(row.rowIndex);
         console.log("Could not find valid lineup");
+        console.log(result);
         buildLineups(true);
         return;
     }
     for(let p of lineupPlayers){
         let c = row.insertCell(-1)
-        c.innerHTML = p.Name + "<br>" + p.ID + "<br>" + p.Salary + "<br>" + p.Team;
+        c.innerHTML = p.Player + "<br>" + p.ID + "<br>" + p.Salary + "<br>" + p.Team;
         c.style.backgroundColor = getTeamColor(p.Team);
         c.style.color = getTeamSecondaryColor(p.Team);
         totalSalary += Number(p.Salary);
@@ -1102,7 +1133,7 @@ function addLineupToTableFD(result, players){
     }
     for(let p of lineupPlayers){
         let c = row.insertCell(-1)
-        c.innerHTML = p.Name + "<br>" + p.ID + "<br>" + p.Salary + "<br>" + p.Team;
+        c.innerHTML = p.Player + "<br>" + p.ID + "<br>" + p.Salary + "<br>" + p.Team;
         c.style.backgroundColor = getTeamColor(p.Team);
         c.style.color = getTeamSecondaryColor(p.Team);
         totalSalary += Number(p.Salary);
@@ -1152,11 +1183,16 @@ function shuffle(array) {
 }
 
 function randomizeProjection(p, blowouts){
-    var blowout = blowouts[p.Team]['blowout'];
-    var proj = Number(p.Projected);
-    var variance = document.getElementById("variance").value * randNormal(0, 1) * proj/36;
-    p.Projected = applyBlowout(proj, blowout, variance);
-    return p;
+    if(!(p.Team in blowouts)){ 
+        resetMatchups();
+        return randomizeProjection(p, blowouts);
+    }else{
+        var blowout = blowouts[p.Team]['blowout'];
+        var proj = Number(p.Projected);
+        var variance = document.getElementById("variance").value * randNormal(0, 1) * proj/36;
+        p.Projected = applyBlowout(proj, blowout, variance);
+        return p;
+    }
 }
 
 function applyBlowout(proj, blowout, variance){
@@ -1434,7 +1470,7 @@ function getTeamColor(team){
         case "DAL": return "#00538C";
         case "DEN": return "#0E2240";
         case "DET": return "#C8102E";
-        case "GSW": return "#006BB6";
+        case "GS": return "#006BB6";
         case "HOU": return "#CE1141";
         case "IND": return "#002D62";
         case "LAC": return "#C8102E";
@@ -1444,14 +1480,14 @@ function getTeamColor(team){
         case "MIL": return "#00471B";
         case "MIN": return "#0C2340";
         case "NOP": return "#0C2340";
-        case "NYK": return "#006BB6";
+        case "NY": return "#006BB6";
         case "OKC": return "#007AC1";
         case "ORL": return "#0077C0";
         case "PHI": return "#006BB6";
-        case "PHX": return "#1D1160";
+        case "PHO": return "#1D1160";
         case "POR": return "#E03A3E";
         case "SAC": return "#5A2D81";
-        case "SAS": return "#C4CED4";
+        case "SA": return "#C4CED4";
         case "TOR": return "#CE1141";
         case "UTA": return "#002B5C";
         case "WAS": return "#002B5C";
@@ -1461,7 +1497,7 @@ function getTeamColor(team){
 
 function getTeamSecondaryColor(team){
     switch(team){
-        case "SAS": return "#000000";
+        case "SA": return "#000000";
         default: return "#FFFFFF";
     }
 }
@@ -1728,7 +1764,7 @@ async function updateOddsToHit(){
 
 
 function updateOwnership(){
-    if(document.getElementById("contestDataTable").rows[1].cells[5].innerHTML.includes("-")){
+    if(document.getElementById("dfs-site-btn").textContent == "FD"){
         var lineupTable = document.getElementById("lineupTableFD");
     }else{
         var lineupTable = document.getElementById("lineupTable");
@@ -1790,8 +1826,12 @@ function erf(x){
 // Filter the built lineups to only include the top X lineups
 // X is determined by the input box
 // Priority is given to lineups with high starter or backup correlation (determined by salary and team/opponent), high median projected value
-function filterLineups(){
-    var table = document.getElementById("lineupTable");
+function filterLineups(site = "DK"){
+    if(site == "DK"){
+        var table = document.getElementById("lineupTable");
+    }else{
+        var table = document.getElementById("lineupTableFD");
+    }
     var rows = table.rows;
     var lineupValues = [];
     for(let r of rows){
@@ -1804,7 +1844,11 @@ function filterLineups(){
         lineupValues.push(valueOfLineup(lineup));
     }
     var topLineups = [];
-    var lineupsToFilter = document.getElementById("lineupsToFilter").value;
+    if(site == "DK"){
+        var lineupsToFilter = document.getElementById("lineupsToFilter").value;
+    }else{
+        var lineupsToFilter = document.getElementById("lineupsToFilterFD").value;
+    }
 
     for(let i = 0; i < lineupsToFilter; i++){
         let index = lineupValues.indexOf(Math.max(...lineupValues));
@@ -1815,21 +1859,29 @@ function filterLineups(){
     for(let i = rows.length-1; i > 0; i--){
         if(!topLineups.includes(rows[i])) table.deleteRow(i);
     }
+    if(site == "DK"){
+        document.getElementById("lineupsBuilt").innerHTML = topLineups.length;
+    }else{
+        document.getElementById("lineupsBuiltFD").innerHTML = topLineups.length;
+    }
 }
 
 function valueOfLineup(lineup){
-    var players = document.getElementById("contestDataTable").rows;
+    var t_id = "playerAdjustTable";
+    var players = document.getElementById(t_id).rows;
     var lineupObj = {};
     var teams = [];
     for(let p of lineup){
         var player = getPlayer(p, players);
-        var team = player.cells[3].innerHTML;
+        var team = player.cells[whichCol(t_id, "Team")].innerHTML;
         teams.push(team);
-        var opp = player.cells[4].innerHTML;
+        var opp = player.cells[whichCol(t_id, "Opponent")].innerHTML;
         var game = alphabetize(team, opp);
-        var expensive = player.cells[2].innerHTML >= 8000;
-        var highUsage = player.cells[5].innerHTML >= 15;
-        var value = player.cells[7].innerHTML;
+        var salary = player.cells[whichCol(t_id, "Salary")].innerHTML;
+        var proj = player.cells[whichCol(t_id, "Proj")].getElementsByTagName("input")[0].value;
+        var expensive = salary >= 8000;
+        var highUsage = proj >= 15;
+        var value = proj/salary * 1000;
         if(team in lineupObj){
             lineupObj[team]["expensive"] += Number(expensive);
             lineupObj[team]["highUsage"] += Number(highUsage);
@@ -1909,7 +1961,7 @@ function valueOfLineup(lineup){
 
 function getPlayer(name, players){
     for(let p of players){
-        if(p.cells[1].innerHTML == name) return p;
+        if(p.cells[whichCol("playerAdjustTable", "Player")].innerHTML == name) return p;
     }
 }
 
@@ -1926,12 +1978,13 @@ function fillTeamMatchups(){
             matchupsTable.insertRow(-1).innerHTML = "<td>" + team + "</td><td style='text-align:center'><text id='"+team+"WinPct'>"+ val +"</text><input type='range' value='" + val + "' min='0' max='100' oninput='updateMatchup(this)'><text id='"+opp+"WinPct'>"+inverse+"</text></td><td>" + i[2] +"</td>";
         }
     }else{
-        var contestDataTable = document.getElementById("contestDataTable");
+        var t_id = "playerAdjustTable";
+        var contestDataTable = document.getElementById(t_id);
         var rows = contestDataTable.rows;
         var teams = [];
         for(let i = 1; i < rows.length; i++){
-            let team = rows[i].cells[3].innerHTML;
-            let opp = rows[i].cells[4].innerHTML;
+            let team = rows[i].cells[whichCol(t_id, "Team")].textContent;
+            let opp = rows[i].cells[whichCol(t_id, "Opponent")].textContent;
             if(!teams.includes(team)){
                 teams.push(team);
                 teams.push(opp);
@@ -2044,11 +2097,9 @@ function lateSwapThisLineup(lineup, row_index){
     var possible_pool = [];
     var players_to_swap = [];
     var salary_cap = 50000;
-    console.log(player_info);
     for(let i = 1; i < contest_data_table.length; i++){
         let row = contest_data_table[i];
         let name = row.cells[1].textContent;
-        console.log(name);
         if(name == undefined) continue;
         // continue if player's game has started
         let event_info = player_info[name]["event-info"].split(" ");
@@ -2177,4 +2228,97 @@ function getIndexFromPosition(pos){
     else if(pos=="G") return 5;
     else if(pos=="F") return 6;
     else if(pos=="UTIL") return 7;
+}
+
+// Toggles player data based on site selected
+function changeDFSSite(el){
+    if(el.textContent == "DK"){ 
+        el.textContent = "FD";
+        el.className = "fd-btn";
+        fillPlayersFromJSON();
+        colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
+    } else{ 
+        el.textContent = "DK";
+        el.className = "dk-btn";
+        fillPlayersFromJSON();
+        colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
+    }
+    selectBuilder();
+    updateOwnership();
+}
+
+// find which column corresponds to a header for a given table
+function whichCol(table_id, header){
+    var table = document.getElementById(table_id);
+    var headers = table.rows[0].cells;
+    for(let i = 0; i < headers.length; i++){
+        if(headers[i].textContent == header) return i;
+    }
+}
+
+// find which row corresponds to a player for a given table
+function whichRow(table_id, player){
+    var table = document.getElementById(table_id);
+    var rows = table.rows;
+    var player_col = whichCol(table_id, "Player");
+    for(let i = 1; i < rows.length; i++){
+        if(rows[i].cells[player_col].textContent == player) return i;
+    }
+}
+
+// filling player adjust table with data from .json file based on the selected DFS site
+function fillPlayersFromJSON(){
+    var player_info = getInfoFromJSON("data_from_google_sheets.json");
+    var player_adjust_table = document.getElementById("playerAdjustTable");
+    var rows = player_adjust_table.rows;
+    var players = Object.keys(player_info);
+    var site = document.getElementById("dfs-site-btn").textContent;
+    var injuries = (localStorage.NBAInjuries) ? JSON.parse(localStorage.NBAInjuries) : [];
+    var savedPlayerData = (localStorage.savedPlayerDataNBA) ? JSON.parse(localStorage.savedPlayerDataNBA) : {};
+    var teams = [];
+    
+    while(rows.length > 1){
+        player_adjust_table.deleteRow(1);
+    }
+    for(let p of players){
+        let player = player_info[p];
+        let row = player_adjust_table.insertRow(-1);
+        let top_play = site == "DK" ? player["TopPlayDK"] : player["TopPlayFD"];
+        let remove = site == "DK" ? player["RemovedDK"] : player["RemovedFD"];
+        let proj = site == "DK" ? player["Projection"] : player["FD Projection"];
+        if(savedPlayerData[p]){
+            proj = savedPlayerData[p];
+        }
+        row.insertCell(0).innerHTML = p;
+        row.insertCell(-1).innerHTML = site == "DK" ? player["DK ID"] : player["FD ID"];
+        row.insertCell(-1).innerHTML = site == "DK" ? player["DK Position"] : player["FD Position"];
+        row.insertCell(-1).innerHTML = player["Team"];
+        row.insertCell(-1).innerHTML = player["Opp"];
+        row.insertCell(-1).innerHTML = player["event-info"];
+        row.insertCell(-1).innerHTML = site == "DK" ? player["DK Salary"] : player["FD Salary"];
+        row.insertCell(-1).innerHTML = "<input type='range' value='" + proj + "' min='0' max='100' step='0.1' oninput='updateProj(this)'><text id='"+p["DK ID"]+"Proj'>"+proj+"</text>";
+        
+        if(injuries.includes(p)){
+            row.cells[whichCol("playerAdjustTable", "Proj")].getElementsByTagName("input")[0].value = 0;
+            row.insertCell(-1).innerHTML = "<button class='injured' onclick='toggleInjured(this)'>Injured</button>";
+            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='toggleTopPlay(this)'>Removed</button>";
+        }else if(top_play == "true"){
+            row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
+            row.insertCell(-1).innerHTML = "<button class='topPlay' onclick='toggleTopPlay(this)'>Top Play</button>";    
+        }else if(remove == "true"){
+            row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
+            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='toggleTopPlay(this)'>Removed</button>";
+        }else{
+            row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
+            row.insertCell(-1).innerHTML = "<button class='inPool' onclick='toggleTopPlay(this)'>In Pool</button>";
+        }
+
+        if(!teams.includes(player["Team"])) teams.push(player["Team"]);
+    }
+    teams.sort();
+    var teamSelect = document.getElementById("teamSelect");
+    for(let t of teams){
+        teamSelect.innerHTML += "<option value='"+t+"'>"+t+"</option>";
+    }
+    
 }
