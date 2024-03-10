@@ -230,12 +230,24 @@ function openTab(element){
 
 // toggle which builder should be displayed
 function selectBuilder(){
+    var fd = document.getElementById("fdBuilder");
+    var dk = document.getElementById("dkBuilder");
     if(document.getElementById('dfs-site-btn').textContent == "FD"){ 
-        document.getElementById("fdBuilder").style.display = "block";
-        document.getElementById("dkBuilder").style.display = "none"; 
+        fd.style.display = "block";
+        dk.style.display = "none"; 
     }else{
-        document.getElementById("fdBuilder").style.display = "none";
-        document.getElementById("dkBuilder").style.display = "block";
+        fd.style.display = "none";
+        dk.style.display = "block";
+        let headers = dk.getElementsByTagName("th");
+
+        if(document.getElementById("dfs-site-btn").textContent == "DK") {
+            var labels = ["PG", "SG", "SF", "PF", "C", "G", "F", "UTIL"];
+        }else{
+            var labels = ["PG", "SG", "G", "SF", "PF", "F", "C", "UTIL"];
+        }
+        for(let i = 0; i < labels.length; i++){
+            headers[i].innerHTML = labels[i];
+        }
     }
 }
 
@@ -819,18 +831,18 @@ async function buildLineups(only_one_lineup = false){
                 }
                 player['UTIL'] = 1;
                 player[player.Team] = 1;
-                console.log(player);
                 player = randomizeProjection(player, blowouts);
                 players[player.Player] = player;
             }
-            console.log(players);
 
             return(players);
         }).then((players) => {
             // solve for max projection with constraints
-            var topPlays = document.getElementById("minTopPlaysDK").value;
+            var site = document.getElementById('dfs-site-btn').textContent;
+            var topPlays = document.getElementById("minTopPlaysDK").value; // ok since we're using the same builder for Y and DK
             var teams = [];
             var opponents = {};
+            var max_salary = site == "DK" ? 50000 : 200;
             for(let p in players){
                 if(!teams.includes(players[p].Team)) {
                     teams.push(players[p].Team);
@@ -844,11 +856,11 @@ async function buildLineups(only_one_lineup = false){
                 "SG": {"max": 3},
                 "SF": {"max": 3},
                 "PF": {"max": 3},
-                "C": {"max": 2},
-                "G": {"min": 4},
-                "F": {"min": 4},
+                "C": {"min": 1},
+                "G": {"min": 3},
+                "F": {"min": 3},
                 "UTIL": {"equal": 8},
-                "Salary": {"max": 50000},
+                "Salary": {"max": max_salary},
                 "Top Play": {"min" : topPlays}
             }
             for(let t of teams){
@@ -875,8 +887,6 @@ async function buildLineups(only_one_lineup = false){
                 var model = data[0];
                 var players = data[1];
 
-                console.log(model);
-                console.log(players);
                 var result= solver.Solve(model);
                 addLineupToTable(result, players);
             }); 
@@ -1076,15 +1086,17 @@ function addLineupToTable(result, players){
     
     var orderIsCorrect = false;
     var beginLoop = Date.now();
+    var site = document.getElementById('dfs-site-btn').textContent;
+    console.log(lineupPlayers);
     while(!orderIsCorrect){
-        orderIsCorrect = checkOrder(lineupPlayers);
+        orderIsCorrect = site == "Y" ? checkOrder(lineupPlayers, ["PG", "SG", "G", "SF", "PF", "F", "C"]) : checkOrder(lineupPlayers);
         if(!orderIsCorrect) lineupPlayers = shuffle(lineupPlayers);
         if(Date.now() - beginLoop > 1000) break;
     }
     if(!orderIsCorrect){
         table.deleteRow(row.rowIndex);
         console.log("Could not find valid lineup");
-        console.log(result);
+        //console.log(result);
         buildLineups(true);
         return;
     }
@@ -1149,7 +1161,6 @@ function addLineupToTableFD(result, players){
 }
 
 function checkOrder(lineup, order = ["PG", "SG", "SF", "PF", "C", "G", "F"]){
-    
     for(let i = 0; i < order.length; i++){
         if(!lineup[i].Position.includes(order[i])) return false;
     }
@@ -1183,16 +1194,11 @@ function shuffle(array) {
 }
 
 function randomizeProjection(p, blowouts){
-    if(!(p.Team in blowouts)){ 
-        resetMatchups();
-        return randomizeProjection(p, blowouts);
-    }else{
-        var blowout = blowouts[p.Team]['blowout'];
-        var proj = Number(p.Projected);
-        var variance = document.getElementById("variance").value * randNormal(0, 1) * proj/36;
-        p.Projected = applyBlowout(proj, blowout, variance);
-        return p;
-    }
+    var blowout = blowouts[p.Team]['blowout'];
+    var proj = Number(p.Projected);
+    var variance = document.getElementById("variance").value * randNormal(0, 1) * proj/36;
+    p.Projected = applyBlowout(proj, blowout, variance);
+    return p;
 }
 
 function applyBlowout(proj, blowout, variance){
@@ -1311,7 +1317,7 @@ function downloadLineupsFD(){
         var row = [];
         for(let c of l.cells){
             if(c.cellIndex >= 9) continue;
-            csv += c.innerHTML.split("<br>")[1]
+            csv += c.innerHTML.split("<br>")[1];
             if(c.cellIndex < 8) csv += ",";
         }
         csv += "\n";    
@@ -1327,26 +1333,37 @@ function downloadLineupsFD(){
 function downloadEditedLineups(){
     var lineups = document.getElementById("lineupTable").rows;
     var csv = "data:text/csv;charset=utf-8,";
-    var previousLineups = JSON.parse(DKEntries);
-
+    var previousLineups = DKEntries;// JSON.parse(DKEntries);
+    var site = document.getElementById('dfs-site-btn').textContent;
     for(let l of lineups){
         if(l.rowIndex == 0) continue;
         var row = [];
         for(let c of l.cells){
             if(c.cellIndex >= 8) continue;
-            row.push(c.innerHTML.split("<br>")[1]);
+            let id = c.innerHTML.split("<br>")[1];
+            row.push(id);
         }
 
         var index = l.rowIndex;
         if(index > previousLineups.length) index = previousLineups.length;
         for(let i = 0; i < row.length; i++){
-
-            previousLineups[index][i+4] = row[i];
+            if(site == "Y") previousLineups[index][i+5] = row[i]; else previousLineups[index][i+4] = row[i];
         }
     }
-    for(let l of previousLineups){
-        csv += l.join(",") + "\n";
+    if(site == "Y"){
+        for(let j = 0; j < lineups.length; j++){
+            let l = previousLineups[j];
+            for(let i = 0; i < 13; i++){
+                csv += l[i] + ",";
+            }
+            csv += "\n";
+        }
+    }else{
+        for(let l of previousLineups){
+            csv += l.join(",") + "\n";
+        }
     }
+    console.log(csv);
     //csv += previousLineups.join("\n");
     var encodedUri = encodeURI(csv);
 
@@ -1360,7 +1377,7 @@ function downloadEditedLineups(){
 function downloadEditedLineupsFD(){
     var lineups = document.getElementById("lineupTableFD").rows;
     var csv = "data:text/csv;charset=utf-8,";
-    var previousLineups = JSON.parse(DKEntries);
+    var previousLineups = DKEntries; //JSON.parse(DKEntries);
 
     for(let l of lineups){
         if(l.rowIndex == 0) continue;
@@ -1401,10 +1418,16 @@ function handleLineupscsv(){
         var csv = e.target.result;
         var lines = csv.split("\n");
         var result = [];
+        var site = document.getElementById('dfs-site-btn').textContent;
         var headers = lines[0].split(",");
         for(let i = 0; i < lines.length; i++){
             var obj = [];
             var currentline = lines[i].split(",");
+            if(currentline.length > headers.length && site == "Y") {
+                // combine the first and second items in array into one, with a comma between them
+                currentline[0] = currentline[0]+ currentline[1];
+                currentline.splice(1, 1);
+            }
             for(let j = 0; j < headers.length; j++){
                 obj[j] = currentline[j];
             }
@@ -1414,7 +1437,8 @@ function handleLineupscsv(){
         //return result;
         //return(JSON.stringify(result));
         //location.reload();
-        DKEntries = JSON.stringify(result);
+
+        DKEntries = result; //JSON.stringify(result);
     }
     reader.readAsText(csv);
 
@@ -1442,7 +1466,7 @@ function handleLineupscsvFD(){
         //return result;
         //return(JSON.stringify(result));
         //location.reload();
-        DKEntries = JSON.stringify(result);
+        DKEntries = result; //JSON.stringify(result);
     }
     reader.readAsText(csv);
 
@@ -2203,8 +2227,10 @@ async function swaptimize(players_to_swap, possible_pool, salary_cap, row_index)
         }
         var orderIsCorrect = false;
         var beginLoop = Date.now();
+        var site = document.getElementById("dfs-site-btn").textContent;
+
         while(!orderIsCorrect){
-            orderIsCorrect = checkOrder(lineupPlayers);
+            orderIsCorrect = site == "Y" ? checkOrder(lineupPlayers, ["PG", "SG", "G", "SF", "PF", "F", "C", "UTIL"]) : checkOrder(lineupPlayers);
             if(!orderIsCorrect) lineup = shuffle(lineup);
             if(Date.now() - beginLoop > 1000) break;
         }
@@ -2235,14 +2261,17 @@ function changeDFSSite(el){
     if(el.textContent == "DK"){ 
         el.textContent = "FD";
         el.className = "fd-btn";
-        fillPlayersFromJSON();
-        colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
-    } else{ 
+       
+    } else if(el.textContent == "Y"){ 
         el.textContent = "DK";
         el.className = "dk-btn";
-        fillPlayersFromJSON();
-        colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
+
+    } else{
+        el.textContent = "Y";
+        el.className = "yahoo-btn";
     }
+    fillPlayersFromJSON();
+    colorRowsBasedOnTeam(document.getElementById("playerAdjustTable"), whichCol("playerAdjustTable", "Team"));
     selectBuilder();
     updateOwnership();
 }
@@ -2275,6 +2304,8 @@ function fillPlayersFromJSON(){
     var site = document.getElementById("dfs-site-btn").textContent;
     var injuries = (localStorage.NBAInjuries) ? JSON.parse(localStorage.NBAInjuries) : [];
     var savedPlayerData = (localStorage.savedPlayerDataNBA) ? JSON.parse(localStorage.savedPlayerDataNBA) : {};
+    var savedTopPlays = (localStorage.topPlaysNBA) ? JSON.parse(localStorage.topPlaysNBA) : {};
+    var savedRemoved = (localStorage.removedFromPoolNBA) ? JSON.parse(localStorage.removedFromPoolNBA) : {};
     var teams = [];
     
     while(rows.length > 1){
@@ -2283,34 +2314,64 @@ function fillPlayersFromJSON(){
     for(let p of players){
         let player = player_info[p];
         let row = player_adjust_table.insertRow(-1);
-        let top_play = site == "DK" ? player["TopPlayDK"] : player["TopPlayFD"];
-        let remove = site == "DK" ? player["RemovedDK"] : player["RemovedFD"];
-        let proj = site == "DK" ? player["Projection"] : player["FD Projection"];
+        switch(site){
+            case "DK": 
+                var proj = player["Projection"];
+                var salary = player["DK Salary"];
+                var id = player["DK ID"];
+                var pos = player["DK Position"];
+                var top_play = player["TopPlayDK"];
+                var remove = player["RemovedDK"];
+                break;
+            case "FD":
+                var proj = player["FD Projection"];
+                var salary = player["FD Salary"];
+                var id = player["FD ID"];
+                var pos = player["FD Position"];
+                var top_play = player["TopPlayFD"];
+                var remove = player["RemovedFD"];
+                break;
+            case "Y":
+                var proj = player["FD Projection"];
+                var salary = player["Y Salary"];
+                var id = player["Y ID"];
+                var pos = player["Y Position"];
+                var top_play = player["TopPlayY"];
+                var remove = player["RemovedY"];
+                break;
+        }
+
         if(savedPlayerData[p]){
             proj = savedPlayerData[p];
         }
+        if(p in savedTopPlays){
+            top_play = "true";
+        }
+        if(p in savedRemoved){
+            remove = "true";
+        }
         row.insertCell(0).innerHTML = p;
-        row.insertCell(-1).innerHTML = site == "DK" ? player["DK ID"] : player["FD ID"];
-        row.insertCell(-1).innerHTML = site == "DK" ? player["DK Position"] : player["FD Position"];
+        row.insertCell(-1).innerHTML = id; //site == "DK" ? player["DK ID"] : player["FD ID"];
+        row.insertCell(-1).innerHTML = pos //site == "DK" ? player["DK Position"] : player["FD Position"];
         row.insertCell(-1).innerHTML = player["Team"];
         row.insertCell(-1).innerHTML = player["Opp"];
         row.insertCell(-1).innerHTML = player["event-info"];
-        row.insertCell(-1).innerHTML = site == "DK" ? player["DK Salary"] : player["FD Salary"];
-        row.insertCell(-1).innerHTML = "<input type='range' value='" + proj + "' min='0' max='100' step='0.1' oninput='updateProj(this)'><text id='"+p["DK ID"]+"Proj'>"+proj+"</text>";
+        row.insertCell(-1).innerHTML = salary //site == "DK" ? player["DK Salary"] : player["FD Salary"];
+        row.insertCell(-1).innerHTML = "<input type='range' value='" + proj + "' min='0' max='100' step='0.1' oninput='updateProj(this)'><text id='"+id+"Proj'>"+proj+"</text>";
         
         if(injuries.includes(p)){
             row.cells[whichCol("playerAdjustTable", "Proj")].getElementsByTagName("input")[0].value = 0;
             row.insertCell(-1).innerHTML = "<button class='injured' onclick='toggleInjured(this)'>Injured</button>";
-            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='toggleTopPlay(this)'>Removed</button>";
+            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='togglePlay(this)'>Removed</button>";
         }else if(top_play == "true"){
             row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
-            row.insertCell(-1).innerHTML = "<button class='topPlay' onclick='toggleTopPlay(this)'>Top Play</button>";    
+            row.insertCell(-1).innerHTML = "<button class='topPlay' onclick='togglePlay(this)'>Top Play</button>";    
         }else if(remove == "true"){
             row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
-            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='toggleTopPlay(this)'>Removed</button>";
+            row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='togglePlay(this)'>Removed</button>";
         }else{
             row.insertCell(-1).innerHTML = "<button class='healthy' onclick='toggleInjured(this)'>Healthy</button>";
-            row.insertCell(-1).innerHTML = "<button class='inPool' onclick='toggleTopPlay(this)'>In Pool</button>";
+            row.insertCell(-1).innerHTML = "<button class='inPool' onclick='togglePlay(this)'>In Pool</button>";
         }
 
         if(!teams.includes(player["Team"])) teams.push(player["Team"]);
