@@ -788,7 +788,7 @@ async function buildLineups(only_one_lineup = false){
         });
         promise.then((blowouts) => {
             var rows = adjustPlayers.rows;
-
+            var jvalues = [];
             var players = [];
             // get objects of all players from table and add to players
             // objects should have name as key and all other row info as values
@@ -806,6 +806,9 @@ async function buildLineups(only_one_lineup = false){
                     }
                 }
                 if(player['Projected'] < 14 || pool == "Removed") continue;
+                player['jvalue'] = (Number(player['Projected'])/(Number(player['Salary'])/1000));
+                player['jvalue'] = (player['jvalue'] * player['jvalue'] * player['jvalue'] * player['jvalue']);
+                jvalues.push(player['jvalue']);
                 if(pool == "Top Play"){ 
                     player['Top Play'] = 1; 
                 }else player['Top Play'] = 0;
@@ -835,20 +838,28 @@ async function buildLineups(only_one_lineup = false){
                 players[player.Player] = player;
             }
 
-            return(players);
-        }).then((players) => {
+            return([players, jvalues]);
+        }).then((data) => {
+            var players = data[0];
+            var jvalues = data[1].sort();
             // solve for max projection with constraints
             var site = document.getElementById('dfs-site-btn').textContent;
             var topPlays = document.getElementById("minTopPlaysDK").value; // ok since we're using the same builder for Y and DK
             var teams = [];
             var opponents = {};
             var max_salary = site == "DK" ? 50000 : 200;
+            // get the 10th highest jvalue
+            var min_core = document.getElementById("min-core").value;
+            var min_core_plays= document.getElementById("min-core-plays").value;
+            var core_player_jvalue = jvalues[jvalues.length - min_core_plays -1];
+            
             for(let p in players){
                 if(!teams.includes(players[p].Team)) {
                     teams.push(players[p].Team);
                     opponents[players[p].Team] = players[p].Opponent;
                 }
                 players[p][alphabetize(players[p].Team, players[p].Opponent)] = 1;
+                players[p]["Core"] = players[p].jvalue > core_player_jvalue ? 1 : 0;
             }
             
             var constraints = {
@@ -861,7 +872,8 @@ async function buildLineups(only_one_lineup = false){
                 "F": {"min": 3},
                 "UTIL": {"equal": 8},
                 "Salary": {"max": max_salary},
-                "Top Play": {"min" : topPlays}
+                "Top Play": {"min" : topPlays},
+                "Core": {"min": min_core}
             }
             for(let t of teams){
                 constraints[t] = {"max": 4};
