@@ -141,7 +141,7 @@
             </div>
         </div>
         <div id="fdBuilder">
-            <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuildFD" value="20" min="1"> Min Top Plays: <input type="number" id="minTopPlaysFD" value="6" min="0" max="9" style="width:40px">
+            <div class="downloadChunk holdTop" style="top: 45px;">Lineups to build: <input type="number" id="lineupsToBuildFD" value="20" min="1"> Min Top Plays: <input type="number" id="minTopPlaysFD" value="6" min="0" max="9" style="width:40px"> as well as <input type="number" id="min-core-FD" value="3" min="0" max="6" style="width:40px"> of top <input type="number" id="min-core-plays-FD" value="10" min="0" max="25" style="width:40px"> plays
             Variance: <input type="range" id="varianceFD" min="0" max="50" value="12" oninput="updateVarianceFD()" style="width:200px;vertical-align: middle;">
             <button class="buildLineups classicBuilder" onclick="buildLineupsFD(false)">Build Lineups</button>
             Top X lineups: <input type="number" id="lineupsToFilterFD" value="20" min="1" style="width:40px"> <button class="buildLineups classicBuilder" onclick="filterLineups('FD')">Filter Lineups</button>

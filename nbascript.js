@@ -969,6 +969,7 @@ async function buildLineupsFD(only_one_lineup = false){
             var adjustPlayers = document.getElementById("playerAdjustTable");
             var rows = adjustPlayers.rows;
             var players = [];
+            var jvalues = [];
             // get objects of all players from table and add to players
             // objects should have name as key and all other row info as values
             for(let i = 1; i < rows.length; i++){
@@ -984,6 +985,10 @@ async function buildLineupsFD(only_one_lineup = false){
                     }
                 }
                 if(player['Projected'] < 14 || pool == "Removed") continue;
+                player['jvalue'] = (Number(player['Projected'])/(Number(player['Salary'])/1000));
+                player['jvalue'] = (player['jvalue'] * player['jvalue'] * player['jvalue'] * player['jvalue']);
+                jvalues.push(player['jvalue']);
+
                 if(pool == "Top Play"){ 
                     player['Top Play'] = 1; 
                 }else player['Top Play'] = 0;                // Add position to player object with value 1
@@ -1021,23 +1026,30 @@ async function buildLineupsFD(only_one_lineup = false){
                 player = randomizeProjection(player, blowouts);
                 players[player.Player] = player;
             }
-            var topPlays = document.getElementById("minTopPlaysFD").value;
+            return [players, jvalues];
 
-            return([players, topPlays]);
+
         }).then((data) => {
             var players = data[0];
-            var topPlays = data[1];
-
-        // solve for max projection with constraints
+            var jvalues = data[1].sort();
+            // solve for max projection with constraints
+            var min_core = document.getElementById("min-core-FD").value;
+            var min_core_plays= document.getElementById("min-core-plays-FD").value;
+            var core_player_jvalue = jvalues[jvalues.length - min_core_plays -1];
             var teams = [];
             var opponents = {};
+
             for(let p in players){
                 if(!teams.includes(players[p].Team)) {
                     teams.push(players[p].Team);
                     opponents[players[p].Team] = players[p].Opponent;
                 }
                 players[p][alphabetize(players[p].Team, players[p].Opponent)] = 1;
+                players[p]["Core"] = players[p].jvalue > core_player_jvalue ? 1 : 0;
             }
+            
+            var topPlays = document.getElementById("minTopPlaysFD").value;
+            
             var model = {
                 "optimize": "Projected",
                 "opType": "max",
@@ -1053,7 +1065,8 @@ async function buildLineupsFD(only_one_lineup = false){
                     "S": {"min": 4},
                     "G": {"min": 4},
                     "F": {"min": 4},
-                    "Top Play": {"min": topPlays}
+                    "Top Play": {"min": topPlays},
+                    "Core": {"min": min_core}
                 },
                 "variables": players,
                 "binaries": players
@@ -1064,7 +1077,7 @@ async function buildLineupsFD(only_one_lineup = false){
                 let game = alphabetize(t, opponents[t]);
                 model.constraints[game] = {"max": 7};
             }
-            return([model, players]);
+            return [model, players];
         }).then((data) => { 
             var model = data[0];
             var players = data[1];
@@ -1099,7 +1112,6 @@ function addLineupToTable(result, players){
     var orderIsCorrect = false;
     var beginLoop = Date.now();
     var site = document.getElementById('dfs-site-btn').textContent;
-    console.log(lineupPlayers);
     while(!orderIsCorrect){
         orderIsCorrect = site == "Y" ? checkOrder(lineupPlayers, ["PG", "SG", "G", "SF", "PF", "F", "C"]) : checkOrder(lineupPlayers);
         if(!orderIsCorrect) lineupPlayers = shuffle(lineupPlayers);
@@ -1108,7 +1120,6 @@ function addLineupToTable(result, players){
     if(!orderIsCorrect){
         table.deleteRow(row.rowIndex);
         console.log("Could not find valid lineup");
-        //console.log(result);
         buildLineups(true);
         return;
     }
@@ -1375,7 +1386,6 @@ function downloadEditedLineups(){
             csv += l.join(",") + "\n";
         }
     }
-    console.log(csv);
     //csv += previousLineups.join("\n");
     var encodedUri = encodeURI(csv);
 
@@ -1435,7 +1445,10 @@ function handleLineupscsv(){
         for(let i = 0; i < lines.length; i++){
             var obj = [];
             var currentline = lines[i].split(",");
-            if(currentline.length > headers.length && site == "Y") {
+            if(site == "Y"){
+                currentline = cutOffYahooEntries(currentline);
+            }
+            if(currentline.length > headers.length && site == "Y" ) {
                 // combine the first and second items in array into one, with a comma between them
                 currentline[0] = currentline[0]+ currentline[1];
                 currentline.splice(1, 1);
@@ -1456,6 +1469,14 @@ function handleLineupscsv(){
 
 }
 
+// cuts off yahoo entries at the end of the list of players since they like to add extra commas that ruin everything
+function cutOffYahooEntries(arr){
+    var new_arr = [];
+    for(let i = 0; i < 13; i++){
+        new_arr.push(arr[i]);
+    }
+    return new_arr;
+}
 
 function handleLineupscsvFD(){
     var csv = document.getElementById("editcsvFD").files[0];
