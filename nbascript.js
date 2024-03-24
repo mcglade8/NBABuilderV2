@@ -787,9 +787,11 @@ async function buildLineups(only_one_lineup = false){
             resolve(getBlowouts());
         });
         promise.then((blowouts) => {
+            var orig_data = getInfoFromJSON("data_from_google_sheets.json");
             var rows = adjustPlayers.rows;
             var jvalues = [];
             var players = [];
+            var site = document.getElementById('dfs-site-btn').textContent;
             // get objects of all players from table and add to players
             // objects should have name as key and all other row info as values
             for(let i = 1; i < rows.length; i++){
@@ -806,8 +808,7 @@ async function buildLineups(only_one_lineup = false){
                     }
                 }
                 if(player['Projected'] < 14 || pool == "Removed") continue;
-                player['jvalue'] = (Number(player['Projected'])/(Number(player['Salary'])/1000));
-                player['jvalue'] = (player['jvalue'] * player['jvalue'] * player['jvalue'] * player['jvalue']);
+                player['jvalue'] = site == "Y" ? orig_data[player['Player']]['Y J-Value'] : orig_data[player['Player']]['DK J-Value'];
                 jvalues.push(player['jvalue']);
                 if(pool == "Top Play"){ 
                     player['Top Play'] = 1; 
@@ -1571,42 +1572,42 @@ function resetPlayerAdjustTable(){
 }
 
 async function toggleInjured(btn){
-    var topPlayBtn = btn.parentNode.parentNode.cells[5].getElementsByTagName("button")[0];
+    var topPlayBtn = btn.parentNode.parentNode.cells[9].getElementsByTagName("button")[0];
     if(localStorage.NBAInjuries){
         var injuries = JSON.parse(localStorage.NBAInjuries);
     }else{
-        var injuries = [];
+        var injuries = {};
     }
+    if(localStorage.removedFromPoolNBA) var removed = JSON.parse(localStorage.removedFromPoolNBA); else var removed = {};
+
     var player = btn.parentNode.parentNode.cells[0].innerHTML;
+    var slider = btn.parentNode.parentNode.cells[7].getElementsByTagName("input")[0];
 
     if(btn.innerHTML == "Healthy"){
         btn.innerHTML = "Injured";
         btn.className = "injured";
-        btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].setAttribute('savedproj', btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].value);
-        btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].value = 0;
+        slider.setAttribute('savedproj', slider.value);
+        slider.value = 0;
         topPlayBtn.innerHTML = "Removed";
         topPlayBtn.className = "removedFromPool";
-        if(localStorage.removedFromPoolNBA) var removed = JSON.parse(localStorage.removedFromPoolNBA); else var removed = [];
-        if(!removed.includes(player)) removed.push(player);
+        console.log(removed);
+        if(!(player in removed)) removed[player] = slider.getAttribute('savedproj');
         localStorage.removedFromPoolNBA = JSON.stringify(removed);
-        if(!injuries.includes(player)) injuries.push(player);
+        if(!(player in injuries)) injuries[player] = slider.getAttribute('savedproj');
     } else{
         btn.innerHTML = "Healthy";
         btn.className = "healthy";
-        btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].value = btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].getAttribute('savedproj');
-        btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0].removeAttribute('savedproj');
-        var index = injuries.indexOf(player);
+        slider.value = removed[player];
+        slider.removeAttribute('savedproj');
         topPlayBtn.innerHTML = "In Pool";
         topPlayBtn.className = "inPool";
-        if(localStorage.removedFromPoolNBA) var removed = JSON.parse(localStorage.removedFromPoolNBA); else var removed = [];
-        if(removed.includes(player)){
-            var index = removed.indexOf(player);
-            removed.splice(index, 1);
+        if(player in removed){
+            delete removed[player];
         }
         localStorage.removedFromPoolNBA = JSON.stringify(removed);
-        if(index > -1) injuries.splice(index, 1);
+
     }
-    updateProj(btn.parentNode.parentNode.cells[3].getElementsByTagName("input")[0]);
+    updateProj(btn.parentNode.parentNode.cells[7].getElementsByTagName("input")[0]);
     localStorage.NBAInjuries = JSON.stringify(injuries);
 }
 
@@ -2392,7 +2393,7 @@ function fillPlayersFromJSON(){
         row.insertCell(-1).innerHTML = salary //site == "DK" ? player["DK Salary"] : player["FD Salary"];
         row.insertCell(-1).innerHTML = "<input type='range' value='" + proj + "' min='0' max='100' step='0.1' oninput='updateProj(this)'><text id='"+id+"Proj'>"+proj+"</text>";
         
-        if(injuries.includes(p)){
+        if(p in injuries){
             row.cells[whichCol("playerAdjustTable", "Proj")].getElementsByTagName("input")[0].value = 0;
             row.insertCell(-1).innerHTML = "<button class='injured' onclick='toggleInjured(this)'>Injured</button>";
             row.insertCell(-1).innerHTML = "<button class='removeFromPool' onclick='togglePlay(this)'>Removed</button>";
